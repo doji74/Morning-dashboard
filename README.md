@@ -353,6 +353,8 @@ des Tages.
 | Workflow erscheint nicht unter *Actions* | Prüfen, ob `.github/workflows/dashboard.yml` hochgeladen wurde (Schritt 2.4). |
 | Fehler bei „Auf GitHub Pages veröffentlichen“ | In *Settings → Pages* muss als Source **GitHub Actions** gewählt sein. |
 | Keine Push-Nachricht | Secret `NTFY_TOPIC` genau so geschrieben? Gleiches Topic in der App abonniert? Im Workflow-Log den Schritt „Push-Nachricht“ ansehen. |
+| Workflow rot, im Log „ntfy-Fehler 404“ | Im Secret `NTFY_TOPIC` steht etwas anderes als der reine Topic-Name. Richtig ist z. B. `morgen-dortmund-7f3k9q2x`, ohne Leerzeichen, ohne Umlaute, ohne Anführungszeichen. Eine ganze Adresse wie `https://ntfy.sh/…` wird inzwischen automatisch erkannt. Secrets kann man nicht ansehen, nur überschreiben: *Settings → Secrets and variables → Actions → NTFY_TOPIC → Update*. |
+| Bahn: „Failed to resolve v6.db.transport.rest“ im Log | Der kostenlose Bahn-Dienst war nicht erreichbar. Im Browser https://v6.db.transport.rest aufrufen: Lädt die Seite nicht, ist der Dienst gerade gestört. Das Dashboard läuft trotzdem weiter, die Bahn-Kachel zeigt dann „nicht verfügbar“. |
 | Push macht doch Ton | Schritt 7: Den Kanal für die **minimale** Priorität auf lautlos stellen. |
 | Eine Nachrichten-Rubrik ist leer | Ein Feed hat seine Adresse geändert. Unter der Kachel steht „Nicht erreichbar: …“. Mit `--check-feeds` testen und in `config.json` ersetzen, z. B. durch einen Google-News-Feed. |
 | Bahn zeigt „nicht verfügbar“ | `v6.db.transport.rest` ist ein kostenloser Community-Dienst und manchmal kurz gestört. Auf ⟳ tippen oder später nochmal öffnen. |
