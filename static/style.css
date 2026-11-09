@@ -1,0 +1,224 @@
+:root {
+  --bg: #0b1120;
+  --tile: #131c31;
+  --tile-2: #1a2540;
+  --line: #24314f;
+  --text: #e6ebf5;
+  --muted: #8f9bb5;
+  --accent: #fbb03b;
+  --ok: #34d399;
+  --warn: #fbbf24;
+  --bad: #f87171;
+  --link: #93c5fd;
+  --radius: 16px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+           max(16px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+a { color: var(--link); text-decoration: none; }
+a:hover, a:focus-visible { text-decoration: underline; }
+
+.muted { color: var(--muted); }
+.small { font-size: 0.85em; }
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 4px 2px 12px;
+}
+.top h1 { margin: 0; font-size: 1.5rem; letter-spacing: -0.01em; }
+.top p { margin: 2px 0 0; font-size: 0.9rem; }
+
+.icon-btn {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--tile);
+  color: var(--text);
+  font-size: 1.3rem;
+  cursor: pointer;
+  flex: none;
+}
+.icon-btn.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.btn {
+  border: 1px solid var(--line);
+  background: var(--tile-2);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 10px 16px;
+  font: inherit;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.grid { display: grid; gap: 12px; grid-template-columns: 1fr; }
+.full { grid-column: 1 / -1; }
+
+.tile {
+  background: var(--tile);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  min-width: 0;
+}
+.tile h2 {
+  margin: 0 0 10px;
+  font-size: 1.05rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tile h2 .badge { margin-left: auto; }
+
+.badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--tile-2);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.badge.live { color: var(--ok); }
+.badge.demo { color: var(--accent); }
+
+/* Warnung */
+.tile-warn {
+  background: #3b1219;
+  border-color: #7f1d1d;
+}
+.tile-warn h2 { color: #fecaca; margin-bottom: 6px; }
+.tile-warn ul { margin: 0; padding-left: 20px; }
+
+/* Bahn */
+.conn + .conn { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.conn h3 { margin: 0 0 6px; font-size: 0.95rem; font-weight: 600; }
+.conn h3 span { font-weight: 400; color: var(--muted); }
+.journeys { list-style: none; margin: 0; padding: 0; }
+.journey {
+  display: grid;
+  grid-template-columns: 3.4em 3em 1fr auto;
+  gap: 2px 8px;
+  align-items: baseline;
+  padding: 7px 0;
+  border-bottom: 1px dashed var(--line);
+}
+.journey:last-child { border-bottom: 0; }
+.journey .time { font-weight: 700; font-variant-numeric: tabular-nums; font-size: 1.05rem; }
+.journey .delay { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 0.9rem; }
+.journey .line { min-width: 0; overflow-wrap: anywhere; }
+.journey .plat { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.journey .plat.changed { color: var(--warn); font-weight: 700; }
+.journey .details { grid-column: 3 / -1; font-size: 0.82rem; color: var(--muted); }
+.journey .remark { grid-column: 1 / -1; font-size: 0.82rem; color: var(--warn); }
+.journey.cancelled .time, .journey.cancelled .line { text-decoration: line-through; color: var(--muted); }
+.d-ok { color: var(--ok); }
+.d-mid { color: var(--warn); }
+.d-bad { color: var(--bad); }
+
+/* Wetter */
+.weather-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.wx-now { display: flex; align-items: center; gap: 10px; }
+.wx-icon { font-size: 2.2rem; line-height: 1; }
+.wx-temp { font-size: 2rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.wx-desc { font-size: 0.85rem; }
+.wx-facts { margin: 8px 0 10px; font-size: 0.85rem; color: var(--muted); }
+.wx-facts b { color: var(--text); font-weight: 600; }
+.wx-hours {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 4px;
+  text-align: center;
+  font-size: 0.78rem;
+}
+.wx-hours div { background: var(--tile-2); border-radius: 10px; padding: 5px 2px; }
+.wx-hours .past { opacity: 0.45; }
+.wx-hours .h { color: var(--muted); }
+.wx-hours .i { font-size: 1.1rem; }
+.wx-hours .t { font-weight: 600; }
+.wx-hours .r { color: var(--link); }
+.rainbars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 34px;
+  margin-top: 10px;
+}
+.rainbars span {
+  flex: 1;
+  background: #3b82f6;
+  border-radius: 2px 2px 0 0;
+  min-height: 2px;
+  opacity: 0.85;
+}
+.rainbars span.now { background: var(--accent); }
+.rainaxis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+#myloc .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+/* Nachrichten */
+.news-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+}
+.news-list { list-style: none; margin: 0; padding: 0; }
+.news-list li { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.news-list li:last-child { border-bottom: 0; padding-bottom: 0; }
+.news-list a { color: var(--text); font-weight: 500; display: block; }
+.news-list .meta { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+.summary {
+  background: var(--tile-2);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.88rem;
+  margin-bottom: 8px;
+}
+.summary .label { font-size: 0.72rem; color: var(--accent); font-weight: 600; display: block; }
+
+.foot { text-align: center; font-size: 0.75rem; margin-top: 18px; }
+
+/* Handy: zwei Wetter-Kacheln nebeneinander -> Stunden in 2 Reihen à 3 */
+@media (max-width: 640px) {
+  .wx-hours { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 380px) {
+  body { font-size: 14px; }
+  .tile { padding: 12px; }
+  .wx-temp { font-size: 1.6rem; }
+  .wx-icon { font-size: 1.8rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .icon-btn.spin { animation: none; opacity: 0.6; }
+}
