@@ -1,0 +1,108 @@
+{
+  "title": "Guten Morgen",
+  "timezone": "Europe/Berlin",
+
+  "weather": {
+    "locations": [
+      { "name": "Dortmund", "lat": 51.5136, "lon": 7.4653 },
+      { "name": "Bochum", "lat": 51.4818, "lon": 7.2162 }
+    ],
+    "hours": [6, 9, 12, 15, 18, 21]
+  },
+
+  "train": {
+    "api": "https://v6.db.transport.rest",
+    "weekdays_only": true,
+    "warn_delay_minutes": 5,
+    "connections": [
+      {
+        "id": "morgens",
+        "label": "Morgens",
+        "from": { "id": "8000080", "name": "Dortmund Hbf" },
+        "to": { "id": "8000041", "name": "Bochum Hbf" },
+        "start": "05:30",
+        "end": "06:30"
+      },
+      {
+        "id": "nachmittags",
+        "label": "Nachmittags",
+        "from": { "id": "8000041", "name": "Bochum Hbf" },
+        "to": { "id": "8000080", "name": "Dortmund Hbf" },
+        "start": "14:30",
+        "end": "16:00"
+      }
+    ]
+  },
+
+  "news": {
+    "items_per_section": 5,
+    "max_age_hours": 48,
+    "sections": [
+      {
+        "id": "lokal",
+        "title": "Dortmund lokal",
+        "icon": "📍",
+        "feeds": [
+          { "name": "Ruhr Nachrichten", "url": "https://www.ruhrnachrichten.de/dortmund/feed/" },
+          { "name": "WAZ Dortmund", "url": "https://www.waz.de/lokales/dortmund/rss" },
+          { "name": "Google News", "url": "https://news.google.com/rss/search?q=Dortmund+when:2d&hl=de&gl=DE&ceid=DE:de" }
+        ]
+      },
+      {
+        "id": "nrw",
+        "title": "NRW",
+        "icon": "🏛️",
+        "feeds": [
+          { "name": "tagesschau NRW", "url": "https://www.tagesschau.de/inland/regional/nordrheinwestfalen/index~rss2.xml" },
+          { "name": "WDR", "url": "https://www1.wdr.de/uebersicht-100.feed" }
+        ]
+      },
+      {
+        "id": "deutschland",
+        "title": "Deutschland",
+        "icon": "🇩🇪",
+        "feeds": [
+          { "name": "tagesschau", "url": "https://www.tagesschau.de/inland/index~rss2.xml" }
+        ]
+      },
+      {
+        "id": "welt",
+        "title": "Welt",
+        "icon": "🌍",
+        "feeds": [
+          { "name": "tagesschau", "url": "https://www.tagesschau.de/ausland/index~rss2.xml" }
+        ]
+      },
+      {
+        "id": "bvb",
+        "title": "BVB",
+        "icon": "🟡",
+        "feeds": [
+          { "name": "kicker", "url": "https://newsfeed.kicker.de/team/borussia-dortmund" },
+          { "name": "Google News", "url": "https://news.google.com/rss/search?q=%22Borussia+Dortmund%22+OR+BVB+when:2d&hl=de&gl=DE&ceid=DE:de" }
+        ]
+      },
+      {
+        "id": "bundesliga",
+        "title": "Bundesliga",
+        "icon": "⚽",
+        "feeds": [
+          { "name": "sportschau", "url": "https://www.sportschau.de/fussball/bundesliga/index~rss2.xml" },
+          { "name": "kicker", "url": "https://newsfeed.kicker.de/news/bundesliga" }
+        ]
+      }
+    ]
+  },
+
+  "claude": {
+    "enabled": true,
+    "model": "claude-opus-5-5",
+    "effort": "low",
+    "max_tokens": 4000
+  },
+
+  "notify": {
+    "headlines": 3,
+    "headline_sections": ["deutschland", "lokal", "bvb"]
+  }
+}

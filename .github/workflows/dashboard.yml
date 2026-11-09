@@ -1,0 +1,96 @@
+name: Morgen-Dashboard
+
+# Ziel: Mo–Fr um 04:15 Uhr deutscher Zeit (Europe/Berlin).
+# GitHub-Cron läuft immer in UTC und kennt keine Sommerzeit, daher zwei Einträge:
+#   Winterzeit (MEZ  = UTC+1): 04:15 Berlin = 03:15 UTC
+#   Sommerzeit (MESZ = UTC+2): 04:15 Berlin = 02:15 UTC
+# Der Job "zeitcheck" lässt nur den Lauf durch, der zur aktuellen Zeitzone passt
+# und bei dem es in Berlin gerade 04:xx Uhr ist. Der andere Lauf wird übersprungen.
+on:
+  schedule:
+    - cron: "15 3 * * 1-5"   # Winterzeit
+    - cron: "15 2 * * 1-5"   # Sommerzeit
+  workflow_dispatch:          # manuell starten (Actions -> Morgen-Dashboard -> Run workflow)
+    inputs:
+      notify:
+        description: "Push-Nachricht per ntfy senden?"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: morgen-dashboard
+  cancel-in-progress: false
+
+jobs:
+  zeitcheck:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.check.outputs.run }}
+    steps:
+      - id: check
+        env:
+          EVENT: ${{ github.event_name }}
+          SCHEDULE: ${{ github.event.schedule }}
+        run: |
+          HOUR=$(TZ=Europe/Berlin date +%H)
+          OFFSET=$(TZ=Europe/Berlin date +%z)   # +0100 im Winter, +0200 im Sommer
+          if [ "$OFFSET" = "+0200" ]; then EXPECTED="15 2 * * 1-5"; else EXPECTED="15 3 * * 1-5"; fi
+          echo "Berlin: $(TZ=Europe/Berlin date '+%a %d.%m.%Y %H:%M %Z') | Auslöser: $EVENT '$SCHEDULE'"
+          if [ "$EVENT" != "schedule" ]; then
+            echo "Manueller Start – läuft immer."
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          elif [ "$HOUR" = "04" ] && [ "$SCHEDULE" = "$EXPECTED" ]; then
+            echo "Es ist 04:xx Uhr in Berlin – los geht's."
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Nicht 04:xx Uhr in Berlin oder falscher Cron-Eintrag für die aktuelle Zeitzone – übersprungen."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  dashboard:
+    needs: zeitcheck
+    if: needs.zeitcheck.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20        # Start 04:15 + max. 20 Min -> spätestens ca. 04:35 fertig
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Abhängigkeiten installieren
+        run: pip install -r requirements.txt
+
+      - name: Dashboard bauen (data.json + index.html)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}   # optional: KI-Kurzfassungen
+        run: python build_dashboard.py --out site
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Auf GitHub Pages veröffentlichen
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Push-Nachricht per ntfy (lautlos)
+        if: github.event_name == 'schedule' || inputs.notify
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          NTFY_SERVER: ${{ secrets.NTFY_SERVER }}
+          NTFY_TOKEN: ${{ secrets.NTFY_TOKEN }}
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: python notify.py --data site/data.json

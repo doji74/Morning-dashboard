@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{{TITLE}}</title>
+  <meta name="description" content="Persönliches Morgen-Dashboard: Bahn, Wetter und Nachrichten">
+  <meta name="theme-color" content="#0b1120">
+  <meta name="color-scheme" content="dark">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="style.css?v={{VERSION}}">
+</head>
+<body>
+  <header class="top">
+    <div>
+      <h1 id="title">{{TITLE}}</h1>
+      <p id="subtitle" class="muted"></p>
+    </div>
+    <button id="refresh" class="icon-btn" type="button" aria-label="Live-Daten aktualisieren" title="Live aktualisieren">⟳</button>
+  </header>
+
+  <main id="grid" class="grid">
+    <section id="warning" class="tile tile-warn full" hidden></section>
+    <section id="train" class="tile full"></section>
+    <div id="weather" class="weather-row full"></div>
+    <section id="myloc" class="tile full"></section>
+    <div id="news" class="news-grid full"></div>
+  </main>
+
+  <footer class="muted foot">
+    Daten: Open-Meteo · v6.db.transport.rest · RSS der jeweiligen Quellen
+  </footer>
+
+  <noscript><p class="tile">Für dieses Dashboard bitte JavaScript aktivieren.</p></noscript>
+  <script id="data" type="application/json">{{DATA_JSON}}</script>
+  <script src="app.js?v={{VERSION}}"></script>
+</body>
+</html>
