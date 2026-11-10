@@ -239,10 +239,21 @@ def resolve_station(api: str, station: dict) -> str:
     try:
         matches = get(f"{api}/api/v1/geocode",
                       {"text": station["name"], "type": "STOP", "language": "de"}).json()
-        for m in matches:
-            if m.get("type") == "STOP" and m.get("id"):
-                log(f"Bahn: {station['name']} -> {m['id']} ({m.get('name')})")
-                return m["id"]
+        stops = [m for m in matches if m.get("type") == "STOP" and m.get("id")]
+        want = station["name"].lower()
+
+        def score(m: dict) -> tuple:
+            # Bevorzugt: deutsche Gesamtdaten (DELFI), exakter Name, wichtigste Haltestelle
+            return (m["id"].startswith("de-DELFI"),
+                    (m.get("name") or "").lower() == want,
+                    m.get("importance") or 0)
+
+        if stops:
+            best = max(stops, key=score)
+            if best["id"].startswith("de-DELFI"):
+                log(f"Bahn: {station['name']} -> {best['id']} ({best.get('name')})")
+                return best["id"]
+            log(f"Bahn: {station['name']}: kein DELFI-Treffer ({best['id']}) – nutze Koordinaten")
     except Exception as exc:  # noqa: BLE001
         log(f"Bahn: Suche nach {station['name']} fehlgeschlagen ({exc}) – nutze Koordinaten")
     return f"{station['lat']},{station['lon']}"
