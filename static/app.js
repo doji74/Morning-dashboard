@@ -1,9 +1,9 @@
 /* Morgen-Dashboard – Darstellung und Live-Aktualisierung im Browser.
  *
  * Die Seite enthält die Daten vom morgendlichen Build (eingebettet als JSON).
- * Das Wetter wird beim Öffnen zusätzlich live nachgeladen. Die Bahndaten
- * stammen aus dem Build (die DB-API braucht einen geheimen Schlüssel, der
- * nicht in den Browser gehört). Offline bleiben die Daten vom Morgen sichtbar.
+ * Beim Öffnen werden Bahn (Transitous) und Wetter (Open-Meteo) zusätzlich live
+ * nachgeladen, damit z. B. am Nachmittag echte Verspätungen angezeigt werden.
+ * Schlägt das fehl (offline), bleiben die Daten vom Morgen sichtbar.
  */
 (() => {
   "use strict";
@@ -33,6 +33,29 @@
       weekend: parts.weekday === "Sat" || parts.weekday === "Sun",
       time: `${parts.hour}:${parts.minute}`,
     };
+  }
+
+  // Beliebiger Zeitpunkt -> Berliner Ortszeit als ISO mit Offset (z. B. 2026-11-10T05:42:00+01:00)
+  function toBerlinIso(input) {
+    if (!input) return null;
+    const ts = typeof input === "number" ? input : Date.parse(input);
+    if (isNaN(ts)) return null;
+    const p = {};
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23",
+    }).formatToParts(new Date(ts)).forEach((x) => { p[x.type] = x.value; });
+    const off = Math.round((Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second) - ts) / 60000);
+    const sign = off >= 0 ? "+" : "-";
+    const oh = String(Math.floor(Math.abs(off) / 60)).padStart(2, "0");
+    const om = String(Math.abs(off) % 60).padStart(2, "0");
+    return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}${sign}${oh}:${om}`;
+  }
+
+  // Berliner Uhrzeit "HH:MM" von heute -> Unix-Millisekunden
+  function berlinTs(now, hm) {
+    const [h, mi] = hm.split(":").map(Number);
+    return Date.UTC(now.y, now.m - 1, now.d, h, mi) - now.offsetMin * 60000;
   }
 
   function relTime(iso) {
@@ -114,9 +137,10 @@
     </li>`;
   }
 
-  function renderTrain(train) {
+  function renderTrain(train, live) {
     const el = $("train");
-    const badge = `<span class="badge">Stand ${esc(hhmm(DATA.generated))}</span>`;
+    const badge = live ? '<span class="badge live">live</span>'
+      : `<span class="badge">Stand ${esc(hhmm(DATA.generated))}</span>`;
     let body = "";
     if (!train.active) {
       body = `<p class="muted">${esc(train.note || "Heute keine Pendelzüge.")}</p>`;
@@ -137,6 +161,132 @@
     if (!w.length) { el.hidden = true; el.innerHTML = ""; return; }
     el.hidden = false;
     el.innerHTML = `<h2>⚠️ Bahn-Warnung</h2><ul>${w.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`;
+  }
+
+
+  function computeWarnings(train) {
+    const threshold = train.config?.warn_delay_minutes ?? 5;
+    const out = [];
+    for (const c of train.connections || []) {
+      for (const j of c.journeys || []) {
+        const line = j.legs.map((l) => l.line).join(" / ");
+        if (j.cancelled) { out.push(`${hhmm(j.dep_planned)} ${line} (${c.from.name}) fällt aus`); continue; }
+        const d = Math.max(j.dep_delay || 0, j.arr_delay || 0);
+        if (d > threshold) out.push(`${hhmm(j.dep_planned)} ${line} (${c.from.name}) +${d} Min`);
+      }
+    }
+    return out;
+  }
+
+  // Gleiche Aufbereitung wie normalize_itinerary() in build_dashboard.py
+  const STREET_MODES = new Set(["WALK", "BIKE", "RENTAL", "CAR", "CAR_PARKING", "CAR_DROPOFF",
+    "ODM", "RIDE_SHARING", "FLEX", "HGV"]);
+  const TRANSIT_MODES = "HIGHSPEED_RAIL,LONG_DISTANCE,NIGHT_RAIL,REGIONAL_FAST_RAIL,REGIONAL_RAIL,SUBURBAN";
+
+  function normalizeItinerary(it) {
+    const legs = (it.legs || []).filter((l) => !STREET_MODES.has(l.mode));
+    if (!legs.length) return null;
+    const first = legs[0], last = legs[legs.length - 1];
+    const diff = (a, p) => (a && p ? Math.round((Date.parse(a) - Date.parse(p)) / 60000) : null);
+    const delay = (l, a, p) => (l.realTime ? diff(l[a], l[p]) : null);
+    const cancelled = (l) => !!(l.cancelled || l.from?.cancelled || l.to?.cancelled);
+    const line = (l) => (l.displayName || l.routeShortName || l.tripShortName || "").trim() || "Zug";
+    const remarks = [];
+    for (const l of legs) for (const a of [...(l.alerts || []), ...(l.from?.alerts || [])]) {
+      const t = (a.headerText || a.descriptionText || "").trim();
+      if (t && !remarks.includes(t)) remarks.push(t);
+    }
+    const plat = first.from.track || first.from.scheduledTrack;
+    const pplat = first.from.scheduledTrack;
+    return {
+      dep_planned: toBerlinIso(first.scheduledStartTime),
+      dep: toBerlinIso(first.startTime),
+      dep_delay: delay(first, "startTime", "scheduledStartTime"),
+      platform: plat,
+      platform_changed: !!(plat && pplat && plat !== pplat),
+      arr_planned: toBerlinIso(last.scheduledEndTime),
+      arr: toBerlinIso(last.endTime),
+      arr_delay: delay(last, "endTime", "scheduledEndTime"),
+      cancelled: legs.some(cancelled),
+      transfers: legs.length - 1,
+      legs: legs.map((l) => ({
+        line: line(l), from: l.from.name, to: l.to.name,
+        dep_planned: toBerlinIso(l.scheduledStartTime),
+        dep_delay: delay(l, "startTime", "scheduledStartTime"),
+        arr_planned: toBerlinIso(l.scheduledEndTime),
+        platform: l.from.track || l.from.scheduledTrack,
+        cancelled: cancelled(l),
+      })),
+      remarks: remarks.slice(0, 2),
+    };
+  }
+
+  let planPath = null;  // die zuletzt funktionierende API-Version
+  async function planRequest(api, params) {
+    let lastErr;
+    for (const path of planPath ? [planPath] : ["/api/v6/plan", "/api/v5/plan"]) {
+      try {
+        const data = await fetchJson(`${api}${path}?${params}`);
+        planPath = path;
+        return data;
+      } catch (e) {
+        lastErr = e;
+        if (!String(e.message).includes("HTTP 404")) throw e;
+      }
+    }
+    throw lastErr;
+  }
+
+  async function fetchConnectionLive(api, conn, now) {
+    const start = berlinTs(now, conn.start), end = berlinTs(now, conn.end);
+    const fromPlace = conn.from.place || `${conn.from.lat},${conn.from.lon}`;
+    const toPlace = conn.to.place || `${conn.to.lat},${conn.to.lon}`;
+    const params = new URLSearchParams({
+      fromPlace, toPlace, time: new Date(start).toISOString().replace(/\.\d{3}Z$/, "Z"),
+      timetableView: "true", searchWindow: String(Math.round((end - start) / 1000)),
+      numItineraries: "12", transitModes: TRANSIT_MODES,
+      maxPreTransitTime: "600", maxPostTransitTime: "600", detailedLegs: "false", language: "de",
+    });
+    const journeys = [], seen = new Set();
+    for (let page = 0; page < 3; page++) {
+      const data = await planRequest(api, params);
+      let latest = null;
+      for (const raw of data.itineraries || []) {
+        const j = normalizeItinerary(raw);
+        if (!j || !j.dep_planned) continue;
+        const dep = Date.parse(j.dep_planned);
+        latest = latest === null ? dep : Math.max(latest, dep);
+        const key = j.dep_planned + "|" + j.legs.map((l) => l.line).join("/");
+        if (dep >= start && dep <= end && !seen.has(key)) { seen.add(key); journeys.push(j); }
+      }
+      if (!data.nextPageCursor || latest === null || latest >= end) break;
+      params.set("pageCursor", data.nextPageCursor);
+    }
+    journeys.sort((a, b) => Date.parse(a.dep_planned) - Date.parse(b.dep_planned));
+    return { id: conn.id, label: conn.label, from: conn.from, to: conn.to, start: conn.start, end: conn.end, journeys };
+  }
+
+  async function refreshTrainLive() {
+    const cfg = DATA.train.config;
+    if (!cfg || !cfg.api) return false;
+    const now = berlinNow();
+    if (cfg.weekdays_only && now.weekend) {
+      DATA.train = { active: false, note: "Wochenende – keine Pendelzüge.", config: cfg, connections: [], warnings: [] };
+      renderTrain(DATA.train, true); renderWarning(DATA.train);
+      return true;
+    }
+    const conns = await Promise.all(cfg.connections.map((c) =>
+      fetchConnectionLive(cfg.api, c, now).catch(() => null)));
+    if (conns.every((c) => c === null)) return false;  // alles fehlgeschlagen: Morgen-Daten behalten
+    conns.forEach((c, i) => {
+      if (c === null) conns[i] = (DATA.train.connections || []).find((x) => x.id === cfg.connections[i].id)
+        || { ...cfg.connections[i], journeys: [], error: "Live-Daten nicht verfügbar" };
+    });
+    DATA.train = { active: true, config: cfg, connections: conns };
+    DATA.train.warnings = computeWarnings(DATA.train);
+    renderTrain(DATA.train, true);
+    renderWarning(DATA.train);
+    return true;
   }
 
   // ------------------------------------------------------------------ Wetter
@@ -277,8 +427,11 @@
     const btn = $("refresh");
     btn.classList.add("spin");
     try {
-      const w = await refreshWeatherLive().catch(() => false);
-      if (w) { lastLive = Date.now(); renderHeader(berlinNow().time); }
+      const [t, w] = await Promise.all([
+        refreshTrainLive().catch(() => false),
+        refreshWeatherLive().catch(() => false),
+      ]);
+      if (t || w) { lastLive = Date.now(); renderHeader(berlinNow().time); }
     } finally {
       btn.classList.remove("spin");
     }
@@ -286,7 +439,7 @@
 
   renderHeader();
   renderWarning(DATA.train);
-  renderTrain(DATA.train);
+  renderTrain(DATA.train, false);
   renderWeather(false);
   renderNews();
   initMyLocation();

@@ -23,7 +23,6 @@ import struct
 import sys
 import time as _time
 import zlib
-import xml.etree.ElementTree as ET
 from datetime import date, datetime, time, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
@@ -150,182 +149,157 @@ def fetch_weather(cfg: dict, tz_name: str) -> list[dict]:
 
 
 # --------------------------------------------------------------------------- #
-# Bahn (offizielle DB-API "Timetables" aus dem DB API Marketplace)
+# Bahn (Transitous / MOTIS, kein API-Key nötig)
 # --------------------------------------------------------------------------- #
 #
-# Die Timetables-API liefert pro Bahnhof und Stunde den Plan (/plan) und alle
-# bekannten Änderungen (/fchg: Verspätung, Gleiswechsel, Ausfall). Eine
-# Verbindung A -> B ist ein Zug, der in A abfährt und laut Plan danach in B
-# ankommt. Erkannt wird das über die Fahrt-ID, die an beiden Bahnhöfen gleich ist.
-# Deshalb gibt es nur Direktverbindungen (RE 1, RE 6, RE 11, S 1, IC/ICE …).
-#
-# Zugangsdaten: GitHub-Secrets DB_CLIENT_ID und DB_API_KEY (siehe README).
+# Transitous (https://transitous.org) ist ein freier Fahrplandienst auf Basis
+# von MOTIS. Für Deutschland nutzt er die bundesweiten Soll- und Echtzeitdaten
+# (DELFI). Bahnhöfe werden per Namenssuche (geocode) gefunden; klappt das
+# nicht, wird mit den Koordinaten aus der config.json gesucht.
 
-# Gründe für Verspätungen (Codes aus der Timetables-Dokumentation, Auswahl)
-DB_DELAY_REASONS = {
-    2: "Polizeiliche Ermittlung", 3: "Feuerwehreinsatz an der Strecke",
-    5: "Ärztliche Versorgung eines Fahrgastes", 7: "Personen im Gleis",
-    8: "Notarzteinsatz am Gleis", 11: "Unwetter", 15: "Vandalismus",
-    18: "Umgestürzter Baum auf der Strecke", 20: "Tiere im Gleis", 22: "Witterungsbedingte Störung",
-    31: "Bauarbeiten", 32: "Verzögerung beim Ein-/Ausstieg", 33: "Reparatur an der Oberleitung",
-    34: "Reparatur an einem Signal", 35: "Streckensperrung", 36: "Reparatur am Zug",
-    38: "Reparatur an der Strecke", 40: "Defektes Stellwerk",
-    41: "Technische Störung an einem Bahnübergang",
-    42: "Außerplanmäßige Geschwindigkeitsbeschränkung",
-    43: "Verspätung eines vorausfahrenden Zuges", 44: "Warten auf einen entgegenkommenden Zug",
-    45: "Überholung", 46: "Warten auf freie Einfahrt", 47: "Verspätete Bereitstellung des Zuges",
-    48: "Verspätung aus vorheriger Fahrt", 58: "Umleitung", 59: "Schnee und Eis",
-    61: "Türstörung", 64: "Weichenstörung", 65: "Erdrutsch", 66: "Hochwasser",
-    99: "Verzögerungen im Betriebsablauf",
-}
+TRANSIT_MODES = "HIGHSPEED_RAIL,LONG_DISTANCE,NIGHT_RAIL,REGIONAL_FAST_RAIL,REGIONAL_RAIL,SUBURBAN"
+STREET_MODES = {"WALK", "BIKE", "RENTAL", "CAR", "CAR_PARKING", "CAR_DROPOFF", "ODM",
+                "RIDE_SHARING", "FLEX", "HGV"}
+PLAN_PATHS = ("/api/v6/plan", "/api/v5/plan")  # neueste zuerst, ältere als Rückfall
 
 
-class DBTimetables:
-    """Kleiner Client für die Timetables-API mit Zwischenspeicher pro Lauf."""
-
-    def __init__(self, api: str, client_id: str, api_key: str, tz: ZoneInfo):
-        self.api = api.rstrip("/")
-        self.headers = {"DB-Client-Id": client_id, "DB-Api-Key": api_key,
-                        "Accept": "application/xml"}
-        self.tz = tz
-        self._plan: dict[tuple[str, str, int], list] = {}
-        self._fchg: dict[str, dict] = {}
-
-    def _xml(self, path: str) -> ET.Element | None:
-        try:
-            resp = get(f"{self.api}/{path}", headers=self.headers)
-        except requests.HTTPError as exc:
-            # 404 = für diese Stunde keine Daten; das ist kein Fehler
-            if exc.response is not None and exc.response.status_code == 404:
-                return None
-            raise
-        return ET.fromstring(resp.content) if resp.content.strip() else None
-
-    def ts(self, value: str | None) -> datetime | None:
-        if not value:
-            return None
-        return datetime.strptime(value, "%y%m%d%H%M").replace(tzinfo=self.tz)
-
-    def plan(self, eva: str, day: date, hour: int) -> list:
-        key = (eva, day.strftime("%y%m%d"), hour)
-        if key not in self._plan:
-            root = self._xml(f"plan/{eva}/{key[1]}/{hour:02d}")
-            self._plan[key] = list(root.findall("s")) if root is not None else []
-        return self._plan[key]
-
-    def changes(self, eva: str) -> dict:
-        if eva not in self._fchg:
-            root = self._xml(f"fchg/{eva}")
-            self._fchg[eva] = ({s.get("id"): s for s in root.findall("s")}
-                               if root is not None else {})
-        return self._fchg[eva]
-
-
-def _trip_id(stop_id: str) -> str:
-    # Format: "<Fahrt>-<JJMMTTHHMM>-<Halt-Nr>"; die Fahrt-ID kann mit "-" beginnen
-    return stop_id.rsplit("-", 2)[0]
-
-
-def _line_name(stop: ET.Element, event: ET.Element) -> str:
-    tl = stop.find("tl")
-    cat = tl.get("c", "") if tl is not None else ""
-    line = event.get("l")
-    if line:
-        return f"{cat} {line}".strip()
-    return f"{cat} {tl.get('n', '') if tl is not None else ''}".strip() or "Zug"
-
-
-def _delay(planned: datetime | None, changed: datetime | None) -> int | None:
-    if planned is None or changed is None:
+def _local(iso: str | None, tz: ZoneInfo) -> str | None:
+    if not iso:
         return None
-    return round((changed - planned).total_seconds() / 60)
+    return datetime.fromisoformat(iso.replace("Z", "+00:00")).astimezone(tz).isoformat()
 
 
-def fetch_connection(db: DBTimetables, conn: dict, day: date) -> dict:
+def _diff_min(actual: str | None, planned: str | None) -> int | None:
+    if not actual or not planned:
+        return None
+    a = datetime.fromisoformat(actual.replace("Z", "+00:00"))
+    p = datetime.fromisoformat(planned.replace("Z", "+00:00"))
+    return round((a - p).total_seconds() / 60)
+
+
+def _line(leg: dict) -> str:
+    name = (leg.get("displayName") or leg.get("routeShortName")
+            or leg.get("tripShortName") or "").strip()
+    return name or "Zug"
+
+
+def normalize_itinerary(it: dict, tz: ZoneInfo) -> dict | None:
+    legs = [leg for leg in it.get("legs", []) if leg.get("mode") not in STREET_MODES]
+    if not legs:
+        return None
+    first, last = legs[0], legs[-1]
+    remarks: list[str] = []
+    for leg in legs:
+        for alert in (leg.get("alerts") or []) + (leg["from"].get("alerts") or []):
+            text = (alert.get("headerText") or alert.get("descriptionText") or "").strip()
+            if text and text not in remarks:
+                remarks.append(text)
+
+    def delay(leg: dict, actual: str, planned: str) -> int | None:
+        return _diff_min(leg.get(actual), leg.get(planned)) if leg.get("realTime") else None
+
+    def cancelled(leg: dict) -> bool:
+        return bool(leg.get("cancelled") or leg["from"].get("cancelled")
+                    or leg["to"].get("cancelled"))
+
+    plat = first["from"].get("track") or first["from"].get("scheduledTrack")
+    planned_plat = first["from"].get("scheduledTrack")
+    return {
+        "dep_planned": _local(first.get("scheduledStartTime"), tz),
+        "dep": _local(first.get("startTime"), tz),
+        "dep_delay": delay(first, "startTime", "scheduledStartTime"),
+        "platform": plat,
+        "platform_changed": bool(plat and planned_plat and plat != planned_plat),
+        "arr_planned": _local(last.get("scheduledEndTime"), tz),
+        "arr": _local(last.get("endTime"), tz),
+        "arr_delay": delay(last, "endTime", "scheduledEndTime"),
+        "cancelled": any(cancelled(leg) for leg in legs),
+        "transfers": len(legs) - 1,
+        "legs": [
+            {
+                "line": _line(leg),
+                "from": leg["from"].get("name"),
+                "to": leg["to"].get("name"),
+                "dep_planned": _local(leg.get("scheduledStartTime"), tz),
+                "dep_delay": delay(leg, "startTime", "scheduledStartTime"),
+                "arr_planned": _local(leg.get("scheduledEndTime"), tz),
+                "platform": leg["from"].get("track") or leg["from"].get("scheduledTrack"),
+                "cancelled": cancelled(leg),
+            }
+            for leg in legs
+        ],
+        "remarks": remarks[:2],
+    }
+
+
+def resolve_station(api: str, station: dict) -> str:
+    """Bahnhof -> Transitous-Haltestellen-ID (oder 'lat,lon' als Rückfall)."""
+    if station.get("stop_id"):
+        return station["stop_id"]
+    try:
+        matches = get(f"{api}/api/v1/geocode",
+                      {"text": station["name"], "type": "STOP", "language": "de"}).json()
+        for m in matches:
+            if m.get("type") == "STOP" and m.get("id"):
+                log(f"Bahn: {station['name']} -> {m['id']} ({m.get('name')})")
+                return m["id"]
+    except Exception as exc:  # noqa: BLE001
+        log(f"Bahn: Suche nach {station['name']} fehlgeschlagen ({exc}) – nutze Koordinaten")
+    return f"{station['lat']},{station['lon']}"
+
+
+_plan_path: str | None = None  # die zuletzt funktionierende API-Version
+
+
+def plan(api: str, params: dict) -> dict:
+    global _plan_path
+    last_exc: Exception | None = None
+    paths = [_plan_path] if _plan_path else list(PLAN_PATHS)
+    for path in paths:
+        try:
+            data = get(f"{api}{path}", params).json()
+            _plan_path = path
+            return data
+        except requests.HTTPError as exc:
+            last_exc = exc
+            if exc.response is None or exc.response.status_code != 404:
+                raise
+    assert last_exc is not None
+    raise last_exc
+
+
+def fetch_connection(api: str, conn: dict, day: date, tz: ZoneInfo) -> dict:
     sh, sm = map(int, conn["start"].split(":"))
     eh, em = map(int, conn["end"].split(":"))
-    start = datetime.combine(day, time(sh, sm), db.tz)
-    end = datetime.combine(day, time(eh, em), db.tz)
-    origin_eva, dest_eva = conn["from"]["id"], conn["to"]["id"]
-
-    # Ankünfte am Ziel: gleiche Stunden plus zwei Stunden Puffer für die Fahrzeit
-    arrivals: dict[str, ET.Element] = {}
-    for hour in range(sh, min(eh + 2, 23) + 1):
-        for s in db.plan(dest_eva, day, hour):
-            if s.find("ar") is not None:
-                arrivals[_trip_id(s.get("id"))] = s
-    dest_changes = db.changes(dest_eva)
-    origin_changes = db.changes(origin_eva)
-
-    journeys = []
-    for hour in range(sh, eh + 1):
-        for s in db.plan(origin_eva, day, hour):
-            dp = s.find("dp")
-            if dp is None:
+    start = datetime.combine(day, time(sh, sm), tz)
+    end = datetime.combine(day, time(eh, em), tz)
+    params: dict = {
+        "fromPlace": conn["from"]["place"], "toPlace": conn["to"]["place"],
+        "time": start.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "timetableView": "true", "searchWindow": int((end - start).total_seconds()),
+        "numItineraries": 12, "transitModes": TRANSIT_MODES,
+        "maxPreTransitTime": 600, "maxPostTransitTime": 600,
+        "detailedLegs": "false", "language": "de",
+    }
+    journeys: list[dict] = []
+    seen: set[str] = set()
+    for _page in range(3):
+        data = plan(api, params)
+        latest: datetime | None = None
+        for raw in data.get("itineraries", []):
+            j = normalize_itinerary(raw, tz)
+            if not j or not j["dep_planned"]:
                 continue
-            dep_planned = db.ts(dp.get("pt"))
-            if dep_planned is None or not start <= dep_planned <= end:
-                continue
-            dest = arrivals.get(_trip_id(s.get("id")))
-            if dest is None:
-                continue
-            ar = dest.find("ar")
-            arr_planned = db.ts(ar.get("pt"))
-            if arr_planned is None or arr_planned <= dep_planned:
-                continue  # Zug fährt in die Gegenrichtung
-
-            ch = origin_changes.get(s.get("id"))
-            ch_dp = ch.find("dp") if ch is not None else None
-            ch_ar = None
-            dch = dest_changes.get(dest.get("id"))
-            if dch is not None:
-                ch_ar = dch.find("ar")
-
-            dep_changed = db.ts(ch_dp.get("ct")) if ch_dp is not None else None
-            arr_changed = db.ts(ch_ar.get("ct")) if ch_ar is not None else None
-            planned_plat = dp.get("pp")
-            plat = (ch_dp.get("cp") if ch_dp is not None else None) or planned_plat
-            cancelled = any(e is not None and e.get("cs") == "c" for e in (ch_dp, ch_ar))
-
-            remarks: list[str] = []
-            for elem in (ch, dch):
-                if elem is None:
-                    continue
-                for m in elem.iter("m"):
-                    if m.get("t") != "d":
-                        continue
-                    try:
-                        text = DB_DELAY_REASONS.get(int(m.get("c", "")))
-                    except ValueError:
-                        text = None
-                    if text and text not in remarks:
-                        remarks.append(text)
-
-            line = _line_name(s, dp)
-            dep_delay = _delay(dep_planned, dep_changed)
-            # Liegt eine Änderung vor, aber keine neue Zeit: pünktlich laut Echtzeit
-            if dep_delay is None and ch_dp is not None and not cancelled:
-                dep_delay = 0
-            arr_delay = _delay(arr_planned, arr_changed)
-            journeys.append({
-                "dep_planned": dep_planned.isoformat(),
-                "dep": (dep_changed or dep_planned).isoformat(),
-                "dep_delay": dep_delay,
-                "platform": plat,
-                "platform_changed": bool(planned_plat and plat and plat != planned_plat),
-                "arr_planned": arr_planned.isoformat(),
-                "arr": (arr_changed or arr_planned).isoformat(),
-                "arr_delay": arr_delay,
-                "cancelled": cancelled,
-                "transfers": 0,
-                "legs": [{
-                    "line": line, "from": conn["from"]["name"], "to": conn["to"]["name"],
-                    "dep_planned": dep_planned.isoformat(), "dep_delay": dep_delay,
-                    "arr_planned": arr_planned.isoformat(), "platform": plat,
-                    "cancelled": cancelled,
-                }],
-                "remarks": remarks[:2],
-            })
+            dep = datetime.fromisoformat(j["dep_planned"])
+            latest = dep if latest is None or dep > latest else latest
+            key = j["dep_planned"] + "|" + "/".join(leg["line"] for leg in j["legs"])
+            if start <= dep <= end and key not in seen:
+                seen.add(key)
+                journeys.append(j)
+        cursor = data.get("nextPageCursor")
+        if not cursor or latest is None or latest >= end:
+            break
+        params["pageCursor"] = cursor
     journeys.sort(key=lambda j: j["dep_planned"])
     return {**{k: conn[k] for k in ("id", "label", "from", "to", "start", "end")},
             "journeys": journeys}
@@ -346,48 +320,43 @@ def train_warnings(train: dict, threshold: int) -> list[str]:
     return warnings
 
 
-def _public_train_cfg(tcfg: dict) -> dict:
-    return {"weekdays_only": tcfg.get("weekdays_only", True),
+def _public_train_cfg(tcfg: dict, connections: list[dict] | None = None) -> dict:
+    return {"api": tcfg["api"].rstrip("/"),
+            "weekdays_only": tcfg.get("weekdays_only", True),
             "warn_delay_minutes": tcfg.get("warn_delay_minutes", 5),
-            "connections": tcfg["connections"]}
+            "connections": connections if connections is not None else tcfg["connections"]}
 
 
 def fetch_train(cfg: dict, now: datetime, tz: ZoneInfo) -> dict:
     tcfg = cfg["train"]
-    public_cfg = _public_train_cfg(tcfg)
+    api = tcfg["api"].rstrip("/")
     if tcfg.get("weekdays_only", True) and now.weekday() >= 5:
         return {"active": False, "note": "Wochenende – keine Pendelzüge.",
-                "config": public_cfg, "connections": [], "warnings": []}
+                "config": _public_train_cfg(tcfg), "connections": [], "warnings": []}
 
-    def empty(conn: dict, error: str) -> dict:
-        return {**{k: conn[k] for k in ("id", "label", "from", "to", "start", "end")},
-                "journeys": [], "error": error}
-
-    client_id = os.environ.get("DB_CLIENT_ID", "").strip()
-    api_key = os.environ.get("DB_API_KEY", "").strip()
-    if not client_id or not api_key:
-        log("Bahn: DB_CLIENT_ID / DB_API_KEY nicht gesetzt – keine Bahndaten")
-        conns = [empty(c, "DB-Zugangsdaten fehlen (Secrets DB_CLIENT_ID und DB_API_KEY)")
-                 for c in tcfg["connections"]]
-        return {"active": True, "config": public_cfg, "connections": conns, "warnings": []}
-
-    db = DBTimetables(tcfg["api"], client_id, api_key, tz)
-    conns = []
+    # Haltestellen-IDs einmal ermitteln und an die Seite weitergeben (für das Live-Nachladen)
+    places: dict[str, str] = {}
+    resolved = []
     for conn in tcfg["connections"]:
+        c = {**conn, "from": dict(conn["from"]), "to": dict(conn["to"])}
+        for side in ("from", "to"):
+            name = c[side]["name"]
+            if name not in places:
+                places[name] = resolve_station(api, c[side])
+            c[side]["place"] = places[name]
+        resolved.append(c)
+
+    conns = []
+    for conn in resolved:
         try:
-            conns.append(fetch_connection(db, conn, now.date()))
+            conns.append(fetch_connection(api, conn, now.date(), tz))
             log(f"Bahn {conn['label']}: {len(conns[-1]['journeys'])} Verbindungen")
-        except requests.HTTPError as exc:
-            status = exc.response.status_code if exc.response is not None else "?"
-            hint = (" – Zugangsdaten prüfen bzw. ob die Timetables-API abonniert ist"
-                    if status in (401, 403) else "")
-            log(f"Bahn {conn['label']}: FEHLER HTTP {status}{hint}")
-            conns.append(empty(conn, "Fahrplandaten nicht verfügbar"))
         except Exception as exc:  # noqa: BLE001
             log(f"Bahn {conn['label']}: FEHLER {exc}")
-            conns.append(empty(conn, "Fahrplandaten nicht verfügbar"))
-    train = {"active": True, "config": public_cfg, "connections": conns}
-    train["warnings"] = train_warnings(train, public_cfg["warn_delay_minutes"])
+            conns.append({**{k: conn[k] for k in ("id", "label", "from", "to", "start", "end")},
+                          "journeys": [], "error": "Fahrplandaten nicht verfügbar"})
+    train = {"active": True, "config": _public_train_cfg(tcfg, resolved), "connections": conns}
+    train["warnings"] = train_warnings(train, tcfg.get("warn_delay_minutes", 5))
     return train
 
 
