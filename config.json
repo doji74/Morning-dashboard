@@ -11,23 +11,23 @@
   },
 
   "train": {
-    "api": "https://v6.db.transport.rest",
+    "api": "https://api.transitous.org",
     "weekdays_only": true,
     "warn_delay_minutes": 5,
     "connections": [
       {
         "id": "morgens",
         "label": "Morgens",
-        "from": { "id": "8000080", "name": "Dortmund Hbf" },
-        "to": { "id": "8000041", "name": "Bochum Hbf" },
+        "from": { "name": "Dortmund Hbf", "lat": 51.5178, "lon": 7.4593 },
+        "to": { "name": "Bochum Hbf", "lat": 51.4787, "lon": 7.2233 },
         "start": "05:30",
         "end": "06:30"
       },
       {
         "id": "nachmittags",
         "label": "Nachmittags",
-        "from": { "id": "8000041", "name": "Bochum Hbf" },
-        "to": { "id": "8000080", "name": "Dortmund Hbf" },
+        "from": { "name": "Bochum Hbf", "lat": 51.4787, "lon": 7.2233 },
+        "to": { "name": "Dortmund Hbf", "lat": 51.5178, "lon": 7.4593 },
         "start": "14:30",
         "end": "16:00"
       }

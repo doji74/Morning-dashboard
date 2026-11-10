@@ -44,18 +44,22 @@ def log(msg: str) -> None:
     print(msg, file=sys.stderr, flush=True)
 
 
-def get(url: str, params: dict | None = None, retries: int = 2) -> requests.Response:
+def get(url: str, params: dict | None = None, retries: int = 2,
+        headers: dict | None = None) -> requests.Response:
     """GET mit Timeout und einfachem Wiederholen bei Netzwerk- oder 5xx-Fehlern."""
     last_exc: Exception | None = None
     for attempt in range(retries + 1):
         try:
-            resp = session.get(url, params=params, timeout=TIMEOUT)
+            resp = session.get(url, params=params, headers=headers, timeout=TIMEOUT)
             if resp.status_code >= 500 or resp.status_code == 429:
                 raise requests.HTTPError(f"HTTP {resp.status_code}", response=resp)
             resp.raise_for_status()
             return resp
         except requests.RequestException as exc:
             last_exc = exc
+            status = exc.response.status_code if exc.response is not None else None
+            if status is not None and 400 <= status < 500 and status != 429:
+                raise  # Client-Fehler (z. B. 401, 404): Wiederholen bringt nichts
             if attempt < retries:
                 _time.sleep(2 * (attempt + 1))
     assert last_exc is not None
@@ -145,53 +149,123 @@ def fetch_weather(cfg: dict, tz_name: str) -> list[dict]:
 
 
 # --------------------------------------------------------------------------- #
-# Bahn (v6.db.transport.rest)
+# Bahn (Transitous / MOTIS, kein API-Key nötig)
 # --------------------------------------------------------------------------- #
+#
+# Transitous (https://transitous.org) ist ein freier Fahrplandienst auf Basis
+# von MOTIS. Für Deutschland nutzt er die bundesweiten Soll- und Echtzeitdaten
+# (DELFI). Bahnhöfe werden per Namenssuche (geocode) gefunden; klappt das
+# nicht, wird mit den Koordinaten aus der config.json gesucht.
 
-def _minutes(seconds: int | None) -> int | None:
-    return None if seconds is None else round(seconds / 60)
+TRANSIT_MODES = "HIGHSPEED_RAIL,LONG_DISTANCE,NIGHT_RAIL,REGIONAL_FAST_RAIL,REGIONAL_RAIL,SUBURBAN"
+STREET_MODES = {"WALK", "BIKE", "RENTAL", "CAR", "CAR_PARKING", "CAR_DROPOFF", "ODM",
+                "RIDE_SHARING", "FLEX", "HGV"}
+PLAN_PATHS = ("/api/v6/plan", "/api/v5/plan")  # neueste zuerst, ältere als Rückfall
 
 
-def normalize_journey(j: dict) -> dict | None:
-    legs = [leg for leg in j.get("legs", []) if not leg.get("walking")]
+def _local(iso: str | None, tz: ZoneInfo) -> str | None:
+    if not iso:
+        return None
+    return datetime.fromisoformat(iso.replace("Z", "+00:00")).astimezone(tz).isoformat()
+
+
+def _diff_min(actual: str | None, planned: str | None) -> int | None:
+    if not actual or not planned:
+        return None
+    a = datetime.fromisoformat(actual.replace("Z", "+00:00"))
+    p = datetime.fromisoformat(planned.replace("Z", "+00:00"))
+    return round((a - p).total_seconds() / 60)
+
+
+def _line(leg: dict) -> str:
+    name = (leg.get("displayName") or leg.get("routeShortName")
+            or leg.get("tripShortName") or "").strip()
+    return name or "Zug"
+
+
+def normalize_itinerary(it: dict, tz: ZoneInfo) -> dict | None:
+    legs = [leg for leg in it.get("legs", []) if leg.get("mode") not in STREET_MODES]
     if not legs:
         return None
     first, last = legs[0], legs[-1]
     remarks: list[str] = []
     for leg in legs:
-        for r in leg.get("remarks") or []:
-            if r.get("type") in ("warning", "status"):
-                text = (r.get("summary") or r.get("text") or "").strip()
-                if text and text not in remarks:
-                    remarks.append(text)
-    plat = first.get("departurePlatform") or first.get("plannedDeparturePlatform")
-    planned_plat = first.get("plannedDeparturePlatform")
+        for alert in (leg.get("alerts") or []) + (leg["from"].get("alerts") or []):
+            text = (alert.get("headerText") or alert.get("descriptionText") or "").strip()
+            if text and text not in remarks:
+                remarks.append(text)
+
+    def delay(leg: dict, actual: str, planned: str) -> int | None:
+        return _diff_min(leg.get(actual), leg.get(planned)) if leg.get("realTime") else None
+
+    def cancelled(leg: dict) -> bool:
+        return bool(leg.get("cancelled") or leg["from"].get("cancelled")
+                    or leg["to"].get("cancelled"))
+
+    plat = first["from"].get("track") or first["from"].get("scheduledTrack")
+    planned_plat = first["from"].get("scheduledTrack")
     return {
-        "dep_planned": first.get("plannedDeparture"),
-        "dep": first.get("departure") or first.get("prognosedDeparture"),
-        "dep_delay": _minutes(first.get("departureDelay")),
+        "dep_planned": _local(first.get("scheduledStartTime"), tz),
+        "dep": _local(first.get("startTime"), tz),
+        "dep_delay": delay(first, "startTime", "scheduledStartTime"),
         "platform": plat,
         "platform_changed": bool(plat and planned_plat and plat != planned_plat),
-        "arr_planned": last.get("plannedArrival"),
-        "arr": last.get("arrival") or last.get("prognosedArrival"),
-        "arr_delay": _minutes(last.get("arrivalDelay")),
-        "cancelled": any(leg.get("cancelled") for leg in legs),
+        "arr_planned": _local(last.get("scheduledEndTime"), tz),
+        "arr": _local(last.get("endTime"), tz),
+        "arr_delay": delay(last, "endTime", "scheduledEndTime"),
+        "cancelled": any(cancelled(leg) for leg in legs),
         "transfers": len(legs) - 1,
         "legs": [
             {
-                "line": (leg.get("line") or {}).get("name", "?"),
-                "from": (leg.get("origin") or {}).get("name"),
-                "to": (leg.get("destination") or {}).get("name"),
-                "dep_planned": leg.get("plannedDeparture"),
-                "dep_delay": _minutes(leg.get("departureDelay")),
-                "arr_planned": leg.get("plannedArrival"),
-                "platform": leg.get("departurePlatform") or leg.get("plannedDeparturePlatform"),
-                "cancelled": bool(leg.get("cancelled")),
+                "line": _line(leg),
+                "from": leg["from"].get("name"),
+                "to": leg["to"].get("name"),
+                "dep_planned": _local(leg.get("scheduledStartTime"), tz),
+                "dep_delay": delay(leg, "startTime", "scheduledStartTime"),
+                "arr_planned": _local(leg.get("scheduledEndTime"), tz),
+                "platform": leg["from"].get("track") or leg["from"].get("scheduledTrack"),
+                "cancelled": cancelled(leg),
             }
             for leg in legs
         ],
-        "remarks": remarks[:3],
+        "remarks": remarks[:2],
     }
+
+
+def resolve_station(api: str, station: dict) -> str:
+    """Bahnhof -> Transitous-Haltestellen-ID (oder 'lat,lon' als Rückfall)."""
+    if station.get("stop_id"):
+        return station["stop_id"]
+    try:
+        matches = get(f"{api}/api/v1/geocode",
+                      {"text": station["name"], "type": "STOP", "language": "de"}).json()
+        for m in matches:
+            if m.get("type") == "STOP" and m.get("id"):
+                log(f"Bahn: {station['name']} -> {m['id']} ({m.get('name')})")
+                return m["id"]
+    except Exception as exc:  # noqa: BLE001
+        log(f"Bahn: Suche nach {station['name']} fehlgeschlagen ({exc}) – nutze Koordinaten")
+    return f"{station['lat']},{station['lon']}"
+
+
+_plan_path: str | None = None  # die zuletzt funktionierende API-Version
+
+
+def plan(api: str, params: dict) -> dict:
+    global _plan_path
+    last_exc: Exception | None = None
+    paths = [_plan_path] if _plan_path else list(PLAN_PATHS)
+    for path in paths:
+        try:
+            data = get(f"{api}{path}", params).json()
+            _plan_path = path
+            return data
+        except requests.HTTPError as exc:
+            last_exc = exc
+            if exc.response is None or exc.response.status_code != 404:
+                raise
+    assert last_exc is not None
+    raise last_exc
 
 
 def fetch_connection(api: str, conn: dict, day: date, tz: ZoneInfo) -> dict:
@@ -200,32 +274,32 @@ def fetch_connection(api: str, conn: dict, day: date, tz: ZoneInfo) -> dict:
     start = datetime.combine(day, time(sh, sm), tz)
     end = datetime.combine(day, time(eh, em), tz)
     params: dict = {
-        "from": conn["from"]["id"], "to": conn["to"]["id"],
-        "departure": start.isoformat(), "results": 8,
-        "stopovers": "false", "remarks": "true", "language": "de",
+        "fromPlace": conn["from"]["place"], "toPlace": conn["to"]["place"],
+        "time": start.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "timetableView": "true", "searchWindow": int((end - start).total_seconds()),
+        "numItineraries": 12, "transitModes": TRANSIT_MODES,
+        "maxPreTransitTime": 600, "maxPostTransitTime": 600,
+        "detailedLegs": "false", "language": "de",
     }
     journeys: list[dict] = []
     seen: set[str] = set()
-    for _page in range(4):
-        data = get(f"{api.rstrip('/')}/journeys", params).json()
-        past_end = False
-        for raw in data.get("journeys", []):
-            j = normalize_journey(raw)
+    for _page in range(3):
+        data = plan(api, params)
+        latest: datetime | None = None
+        for raw in data.get("itineraries", []):
+            j = normalize_itinerary(raw, tz)
             if not j or not j["dep_planned"]:
                 continue
             dep = datetime.fromisoformat(j["dep_planned"])
-            if dep > end:
-                past_end = True
-                continue
+            latest = dep if latest is None or dep > latest else latest
             key = j["dep_planned"] + "|" + "/".join(leg["line"] for leg in j["legs"])
-            if dep >= start and key not in seen:
+            if start <= dep <= end and key not in seen:
                 seen.add(key)
                 journeys.append(j)
-        later = data.get("laterRef")
-        if past_end or not later:
+        cursor = data.get("nextPageCursor")
+        if not cursor or latest is None or latest >= end:
             break
-        params = {k: v for k, v in params.items() if k != "departure"}
-        params["laterThan"] = later
+        params["pageCursor"] = cursor
     journeys.sort(key=lambda j: j["dep_planned"])
     return {**{k: conn[k] for k in ("id", "label", "from", "to", "start", "end")},
             "journeys": journeys}
@@ -246,25 +320,43 @@ def train_warnings(train: dict, threshold: int) -> list[str]:
     return warnings
 
 
+def _public_train_cfg(tcfg: dict, connections: list[dict] | None = None) -> dict:
+    return {"api": tcfg["api"].rstrip("/"),
+            "weekdays_only": tcfg.get("weekdays_only", True),
+            "warn_delay_minutes": tcfg.get("warn_delay_minutes", 5),
+            "connections": connections if connections is not None else tcfg["connections"]}
+
+
 def fetch_train(cfg: dict, now: datetime, tz: ZoneInfo) -> dict:
     tcfg = cfg["train"]
-    public_cfg = {"api": tcfg["api"], "weekdays_only": tcfg.get("weekdays_only", True),
-                  "warn_delay_minutes": tcfg.get("warn_delay_minutes", 5),
-                  "connections": tcfg["connections"]}
+    api = tcfg["api"].rstrip("/")
     if tcfg.get("weekdays_only", True) and now.weekday() >= 5:
         return {"active": False, "note": "Wochenende – keine Pendelzüge.",
-                "config": public_cfg, "connections": [], "warnings": []}
-    conns = []
+                "config": _public_train_cfg(tcfg), "connections": [], "warnings": []}
+
+    # Haltestellen-IDs einmal ermitteln und an die Seite weitergeben (für das Live-Nachladen)
+    places: dict[str, str] = {}
+    resolved = []
     for conn in tcfg["connections"]:
+        c = {**conn, "from": dict(conn["from"]), "to": dict(conn["to"])}
+        for side in ("from", "to"):
+            name = c[side]["name"]
+            if name not in places:
+                places[name] = resolve_station(api, c[side])
+            c[side]["place"] = places[name]
+        resolved.append(c)
+
+    conns = []
+    for conn in resolved:
         try:
-            conns.append(fetch_connection(tcfg["api"], conn, now.date(), tz))
+            conns.append(fetch_connection(api, conn, now.date(), tz))
             log(f"Bahn {conn['label']}: {len(conns[-1]['journeys'])} Verbindungen")
         except Exception as exc:  # noqa: BLE001
             log(f"Bahn {conn['label']}: FEHLER {exc}")
             conns.append({**{k: conn[k] for k in ("id", "label", "from", "to", "start", "end")},
                           "journeys": [], "error": "Fahrplandaten nicht verfügbar"})
-    train = {"active": True, "config": public_cfg, "connections": conns}
-    train["warnings"] = train_warnings(train, public_cfg["warn_delay_minutes"])
+    train = {"active": True, "config": _public_train_cfg(tcfg, resolved), "connections": conns}
+    train["warnings"] = train_warnings(train, tcfg.get("warn_delay_minutes", 5))
     return train
 
 
@@ -555,9 +647,7 @@ def demo_data(cfg: dict, now: datetime) -> tuple[list, dict, list]:
                       "journeys": js})
     tcfg = cfg["train"]
     train = {"active": True, "connections": conns,
-             "config": {"api": tcfg["api"], "weekdays_only": tcfg.get("weekdays_only", True),
-                        "warn_delay_minutes": tcfg.get("warn_delay_minutes", 5),
-                        "connections": tcfg["connections"]}}
+             "config": _public_train_cfg(tcfg)}
     train["warnings"] = train_warnings(train, tcfg.get("warn_delay_minutes", 5))
     news = []
     for sec in cfg["news"]["sections"]:
