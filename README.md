@@ -48,15 +48,18 @@ Push-Nachricht** über **ntfy**.
 
 ## Was das Dashboard kann
 
-**Bahn** (über `v6.db.transport.rest`, nur Mo–Fr)
+**Bahn** (offizielle DB-API „Timetables“, kostenlose Registrierung nötig, nur Mo–Fr)
 - Morgens 05:30–06:30: Dortmund Hbf → Bochum Hbf
 - Nachmittags 14:30–16:00: Bochum Hbf → Dortmund Hbf
-- Abfahrt, Gleis (Gleiswechsel gelb), Verspätung, Ausfälle, Umstiege, Störungshinweise
+- Abfahrt, Ankunft, Gleis (Gleiswechsel gelb), Verspätung, Ausfälle und Grund der Verspätung
+- Es werden **Direktzüge** angezeigt (RE 1, RE 6, RE 11, S 1, IC/ICE …). Umsteigeverbindungen
+  kennt die Timetables-API nicht. Auf dieser Strecke fahren aber ohnehin viele Direktzüge.
 - **Ganz oben eine rote Bahn-Warnung**, sobald ein Zug mehr als 5 Minuten Verspätung hat.
   Ausfälle lösen die Warnung ebenfalls aus.
-- Um 04:15 Uhr gibt es meist noch keine Echtzeitdaten. Deshalb lädt die Seite die
-  Bahndaten **beim Öffnen live nach**. Am Nachmittag siehst du also die echten
-  Verspätungen der Rückfahrt. Ohne Netz bleiben die Daten vom Morgen sichtbar.
+- Die Bahndaten haben den Stand von 04:15 Uhr. Der DB-Schlüssel ist geheim und darf
+  nicht in die öffentliche Seite. Deshalb lädt die Seite die Bahn nicht live nach.
+  Um 04:15 Uhr sind meist nur Fahrplan und bereits bekannte Ausfälle,
+  Gleiswechsel oder Bauarbeiten zu sehen, kurzfristige Verspätungen noch nicht.
 
 **Wetter** (Open-Meteo, kein API-Key nötig)
 - Dortmund und Bochum nebeneinander: aktuell, Min/Max, gefühlte Temperatur, Wind,
@@ -87,7 +90,7 @@ Push-Nachricht** über **ntfy**.
 | `build_dashboard.py` | Holt alle Daten und erzeugt `site/data.json` und `site/index.html` |
 | `notify.py` | Schickt die Push-Nachricht über ntfy |
 | `static/index.template.html` | Vorlage für die Seite |
-| `static/app.js` | Darstellung, Live-Aktualisierung (Bahn/Wetter), „Mein Standort“ |
+| `static/app.js` | Darstellung, Live-Aktualisierung des Wetters, „Mein Standort“ |
 | `static/style.css` | Design (Dark Mode, mobil) |
 | `static/manifest.json` | Macht die Seite installierbar (Name, Icon, Farben) |
 | `static/sw.js` | Service Worker: Installierbarkeit und Offline-Ansicht |
@@ -186,12 +189,30 @@ Secrets sind geheime Werte, die nur der Workflow lesen kann. Sie erscheinen nirg
 
 | Name | Pflicht? | Wert |
 |---|---|---|
-| `NTFY_TOPIC` | **ja** | dein Topic aus Schritt 4, z. B. `morgen-dortmund-7f3k9q2x` |
+| `NTFY_TOPIC` | **ja** | nur der Topic-Name aus Schritt 4, z. B. `morgen-dortmund-7f3k9q2x` (keine ganze Adresse) |
+| `DB_CLIENT_ID` | **ja** (für die Bahn) | Client ID aus dem DB API Marketplace (siehe unten) |
+| `DB_API_KEY` | **ja** (für die Bahn) | API Key aus dem DB API Marketplace (siehe unten) |
 | `ANTHROPIC_API_KEY` | nein | API-Key für die KI-Kurzfassungen (siehe unten) |
 | `NTFY_SERVER` | nein | nur bei eigenem ntfy-Server, z. B. `https://ntfy.example.de` |
 | `NTFY_TOKEN` | nein | nur bei geschütztem Topic (Access-Token) |
 
 Der Name muss **genau so** geschrieben werden, inklusive Großbuchstaben.
+
+**Bahn-Zugangsdaten besorgen (kostenlos):**
+
+1. Gehe auf **https://developers.deutschebahn.com/db-api-marketplace** und registriere
+   dich (oben rechts **Registrieren** bzw. *Sign up*). Bestätige deine E-Mail-Adresse.
+2. Melde dich an und lege eine **Anwendung** an (Menü *Anwendungen* bzw. *Applications*
+   → **Neue Anwendung**). Der Name ist egal, z. B. `Morgen-Dashboard`.
+3. Du siehst jetzt eine **Client ID** und einen **API Key** (*Client Secret*).
+   Den Schlüssel bekommst du oft **nur einmal** angezeigt, also gleich kopieren.
+4. Öffne im Marketplace den **API-Katalog**, suche **Timetables** und klicke auf
+   **Abonnieren**. Wähle dabei deine Anwendung und den kostenlosen Plan (*Free*).
+5. Speichere die Client ID als Secret `DB_CLIENT_ID` und den API Key als Secret `DB_API_KEY`.
+
+Die Menüpunkte im Marketplace können etwas anders heißen. Entscheidend sind drei
+Dinge: eine Anwendung, das Abo der API **Timetables** und die beiden Schlüssel.
+Ohne die Schlüssel läuft das Dashboard trotzdem, die Bahn-Kachel zeigt dann einen Hinweis.
 
 **KI-Kurzfassungen (optional):** Lege unter https://console.anthropic.com ein
 Konto an, lade unter *Billing* etwas Guthaben auf und erstelle unter *API Keys*
@@ -288,9 +309,9 @@ dem nächsten Lauf.
 | `claude.model` / `claude.effort` | Modell und Aufwand für die Kurzfassungen |
 | `notify.headline_sections` | aus welchen Rubriken die 3 Push-Schlagzeilen kommen |
 
-**Bahnhofs-ID herausfinden:** Rufe im Browser auf
-`https://v6.db.transport.rest/locations?query=Essen%20Hbf&results=1`.
-Die Zahl bei `"id"` (z. B. `8000098`) ist die ID.
+**Bahnhofs-ID herausfinden:** Die ID ist die **EVA-Nummer** (auch IBNR genannt) des
+Bahnhofs. Du findest sie zum Beispiel im deutschen Wikipedia-Artikel des Bahnhofs
+in der Infobox, oder du suchst nach „EVA-Nummer Essen Hbf“. Essen Hbf hat z. B. `8000098`.
 
 ---
 
@@ -337,7 +358,7 @@ dauert er 1–2 Minuten und ist damit lange vor 04:45 Uhr fertig.
 > **Hinweis:** GitHub startet geplante Workflows bei hoher Last manchmal verspätet,
 > in seltenen Fällen um mehr als 45 Minuten. Fällt der Start dadurch hinter 04:59 Uhr,
 > wird der Lauf wegen der 04:xx-Regel übersprungen. Für diesen Tag bleibt dann die
-> Seite vom Vortag stehen. Bahn und Wetter lädt die Seite trotzdem live nach.
+> Seite vom Vortag stehen. Das Wetter lädt die Seite trotzdem live nach.
 > Außerdem pausiert GitHub Zeitpläne in Repositories, in denen 60 Tage lang nichts
 > passiert ist. Dann kommt eine E-Mail, und ein Klick reaktiviert den Zeitplan.
 
@@ -354,12 +375,13 @@ des Tages.
 | Fehler bei „Auf GitHub Pages veröffentlichen“ | In *Settings → Pages* muss als Source **GitHub Actions** gewählt sein. |
 | Keine Push-Nachricht | Secret `NTFY_TOPIC` genau so geschrieben? Gleiches Topic in der App abonniert? Im Workflow-Log den Schritt „Push-Nachricht“ ansehen. |
 | Workflow rot, im Log „ntfy-Fehler 404“ | Im Secret `NTFY_TOPIC` steht etwas anderes als der reine Topic-Name. Richtig ist z. B. `morgen-dortmund-7f3k9q2x`, ohne Leerzeichen, ohne Umlaute, ohne Anführungszeichen. Eine ganze Adresse wie `https://ntfy.sh/…` wird inzwischen automatisch erkannt. Secrets kann man nicht ansehen, nur überschreiben: *Settings → Secrets and variables → Actions → NTFY_TOPIC → Update*. |
-| Bahn: „Failed to resolve v6.db.transport.rest“ im Log | Der kostenlose Bahn-Dienst war nicht erreichbar. Im Browser https://v6.db.transport.rest aufrufen: Lädt die Seite nicht, ist der Dienst gerade gestört. Das Dashboard läuft trotzdem weiter, die Bahn-Kachel zeigt dann „nicht verfügbar“. |
+| Bahn: „DB-Zugangsdaten fehlen“ | Die Secrets `DB_CLIENT_ID` und `DB_API_KEY` fehlen oder sind falsch geschrieben (Schritt 5). |
+| Bahn: im Log „HTTP 401“ oder „HTTP 403“ | Client ID oder API Key ist falsch, oder die API **Timetables** ist für deine Anwendung nicht abonniert (Schritt 5, „Bahn-Zugangsdaten besorgen“). |
 | Push macht doch Ton | Schritt 7: Den Kanal für die **minimale** Priorität auf lautlos stellen. |
 | Eine Nachrichten-Rubrik ist leer | Ein Feed hat seine Adresse geändert. Unter der Kachel steht „Nicht erreichbar: …“. Mit `--check-feeds` testen und in `config.json` ersetzen, z. B. durch einen Google-News-Feed. |
-| Bahn zeigt „nicht verfügbar“ | `v6.db.transport.rest` ist ein kostenloser Community-Dienst und manchmal kurz gestört. Auf ⟳ tippen oder später nochmal öffnen. |
+| Bahn zeigt „nicht verfügbar“ | Die DB-API war beim Lauf gestört. Im Workflow-Log steht der Grund. Am nächsten Werktag versucht es der Workflow automatisch wieder, oder du startest ihn von Hand. |
 | „Mein Standort“ geht nicht | Standortfreigabe für Chrome bzw. die Seite erlauben (*Einstellungen → Apps → Chrome → Berechtigungen → Standort*). |
-| Seite zeigt alte Daten | Auf ⟳ tippen. Bahn und Wetter werden dann live geladen. Nachrichten gibt es nur vom morgendlichen Build. |
+| Seite zeigt alte Daten | Auf ⟳ tippen, dann wird das Wetter live geladen. Bahn und Nachrichten gibt es nur vom morgendlichen Build. |
 
 Datenquellen: [Open-Meteo](https://open-meteo.com) (CC BY 4.0),
-[db-rest / transport.rest](https://v6.db.transport.rest), RSS-Feeds der genannten Medien.
+[Deutsche Bahn – Timetables-API](https://developers.deutschebahn.com/db-api-marketplace), RSS-Feeds der genannten Medien.

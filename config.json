@@ -11,7 +11,7 @@
   },
 
   "train": {
-    "api": "https://v6.db.transport.rest",
+    "api": "https://apis.deutschebahn.com/db-api-marketplace/apis/timetables/v1",
     "weekdays_only": true,
     "warn_delay_minutes": 5,
     "connections": [

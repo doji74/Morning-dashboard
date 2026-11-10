@@ -73,6 +73,8 @@ jobs:
 
       - name: Dashboard bauen (data.json + index.html)
         env:
+          DB_CLIENT_ID: ${{ secrets.DB_CLIENT_ID }}             # Bahn: DB API Marketplace
+          DB_API_KEY: ${{ secrets.DB_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}   # optional: KI-Kurzfassungen
         run: python build_dashboard.py --out site
 

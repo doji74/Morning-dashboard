@@ -1,9 +1,9 @@
 /* Morgen-Dashboard – Darstellung und Live-Aktualisierung im Browser.
  *
  * Die Seite enthält die Daten vom morgendlichen Build (eingebettet als JSON).
- * Beim Öffnen werden Bahn und Wetter zusätzlich live nachgeladen, damit z. B.
- * am Nachmittag echte Verspätungen angezeigt werden. Schlägt das fehl (offline),
- * bleiben die Daten vom Morgen sichtbar.
+ * Das Wetter wird beim Öffnen zusätzlich live nachgeladen. Die Bahndaten
+ * stammen aus dem Build (die DB-API braucht einen geheimen Schlüssel, der
+ * nicht in den Browser gehört). Offline bleiben die Daten vom Morgen sichtbar.
  */
 (() => {
   "use strict";
@@ -33,12 +33,6 @@
       weekend: parts.weekday === "Sat" || parts.weekday === "Sun",
       time: `${parts.hour}:${parts.minute}`,
     };
-  }
-
-  // Berliner Uhrzeit "HH:MM" von heute -> Unix-Millisekunden
-  function berlinTs(now, hm) {
-    const [h, mi] = hm.split(":").map(Number);
-    return Date.UTC(now.y, now.m - 1, now.d, h, mi) - now.offsetMin * 60000;
   }
 
   function relTime(iso) {
@@ -120,9 +114,9 @@
     </li>`;
   }
 
-  function renderTrain(train, live) {
+  function renderTrain(train) {
     const el = $("train");
-    const badge = live ? '<span class="badge live">live</span>' : '<span class="badge">Stand Morgen</span>';
+    const badge = `<span class="badge">Stand ${esc(hhmm(DATA.generated))}</span>`;
     let body = "";
     if (!train.active) {
       body = `<p class="muted">${esc(train.note || "Heute keine Pendelzüge.")}</p>`;
@@ -143,110 +137,6 @@
     if (!w.length) { el.hidden = true; el.innerHTML = ""; return; }
     el.hidden = false;
     el.innerHTML = `<h2>⚠️ Bahn-Warnung</h2><ul>${w.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`;
-  }
-
-  function computeWarnings(train) {
-    const threshold = train.config?.warn_delay_minutes ?? 5;
-    const out = [];
-    for (const c of train.connections || []) {
-      for (const j of c.journeys || []) {
-        const line = j.legs.map((l) => l.line).join(" / ");
-        if (j.cancelled) { out.push(`${hhmm(j.dep_planned)} ${line} (${c.from.name}) fällt aus`); continue; }
-        const d = Math.max(j.dep_delay || 0, j.arr_delay || 0);
-        if (d > threshold) out.push(`${hhmm(j.dep_planned)} ${line} (${c.from.name}) +${d} Min`);
-      }
-    }
-    return out;
-  }
-
-  // Gleiche Aufbereitung wie normalize_journey() in build_dashboard.py
-  function normalizeJourney(j) {
-    const legs = (j.legs || []).filter((l) => !l.walking);
-    if (!legs.length) return null;
-    const first = legs[0], last = legs[legs.length - 1];
-    const mins = (s) => (s == null ? null : Math.round(s / 60));
-    const remarks = [];
-    for (const l of legs) for (const r of l.remarks || []) {
-      if (r.type === "warning" || r.type === "status") {
-        const t = (r.summary || r.text || "").trim();
-        if (t && !remarks.includes(t)) remarks.push(t);
-      }
-    }
-    const plat = first.departurePlatform || first.plannedDeparturePlatform;
-    return {
-      dep_planned: first.plannedDeparture,
-      dep: first.departure || first.prognosedDeparture,
-      dep_delay: mins(first.departureDelay),
-      platform: plat,
-      platform_changed: !!(plat && first.plannedDeparturePlatform && plat !== first.plannedDeparturePlatform),
-      arr_planned: last.plannedArrival,
-      arr: last.arrival || last.prognosedArrival,
-      arr_delay: mins(last.arrivalDelay),
-      cancelled: legs.some((l) => l.cancelled),
-      transfers: legs.length - 1,
-      legs: legs.map((l) => ({
-        line: (l.line && l.line.name) || "?",
-        from: l.origin && l.origin.name, to: l.destination && l.destination.name,
-        dep_planned: l.plannedDeparture, dep_delay: mins(l.departureDelay),
-        arr_planned: l.plannedArrival,
-        platform: l.departurePlatform || l.plannedDeparturePlatform,
-        cancelled: !!l.cancelled,
-      })),
-      remarks: remarks.slice(0, 3),
-    };
-  }
-
-  async function fetchConnectionLive(api, conn, now) {
-    const start = berlinTs(now, conn.start), end = berlinTs(now, conn.end);
-    let params = new URLSearchParams({
-      from: conn.from.id, to: conn.to.id, departure: new Date(start).toISOString(),
-      results: "8", stopovers: "false", remarks: "true", language: "de",
-    });
-    const journeys = [], seen = new Set();
-    for (let page = 0; page < 4; page++) {
-      const data = await fetchJson(`${api.replace(/\/$/, "")}/journeys?${params}`);
-      let pastEnd = false;
-      for (const raw of data.journeys || []) {
-        const j = normalizeJourney(raw);
-        if (!j || !j.dep_planned) continue;
-        const dep = Date.parse(j.dep_planned);
-        if (dep > end) { pastEnd = true; continue; }
-        const key = j.dep_planned + "|" + j.legs.map((l) => l.line).join("/");
-        if (dep >= start && !seen.has(key)) { seen.add(key); journeys.push(j); }
-      }
-      if (pastEnd || !data.laterRef) break;
-      params = new URLSearchParams({
-        from: conn.from.id, to: conn.to.id, laterThan: data.laterRef,
-        results: "8", stopovers: "false", remarks: "true", language: "de",
-      });
-    }
-    journeys.sort((a, b) => Date.parse(a.dep_planned) - Date.parse(b.dep_planned));
-    return { ...conn, journeys };
-  }
-
-  async function refreshTrainLive() {
-    const cfg = DATA.train.config;
-    if (!cfg) return false;
-    const now = berlinNow();
-    if (cfg.weekdays_only && now.weekend) {
-      DATA.train = { active: false, note: "Wochenende – keine Pendelzüge.", config: cfg, connections: [], warnings: [] };
-      renderTrain(DATA.train, true); renderWarning(DATA.train);
-      return true;
-    }
-    const conns = await Promise.all(cfg.connections.map((c) =>
-      fetchConnectionLive(cfg.api, c, now).catch(() => null)));
-    if (conns.some((c) => c === null)) {
-      // Teilweise Fehler: vorhandene Morgen-Daten für fehlende Verbindungen behalten
-      conns.forEach((c, i) => {
-        if (c === null) conns[i] = (DATA.train.connections || []).find((x) => x.id === cfg.connections[i].id)
-          || { ...cfg.connections[i], journeys: [], error: "Live-Daten nicht verfügbar" };
-      });
-    }
-    DATA.train = { active: true, config: cfg, connections: conns };
-    DATA.train.warnings = computeWarnings(DATA.train);
-    renderTrain(DATA.train, true);
-    renderWarning(DATA.train);
-    return true;
   }
 
   // ------------------------------------------------------------------ Wetter
@@ -387,11 +277,8 @@
     const btn = $("refresh");
     btn.classList.add("spin");
     try {
-      const [t, w] = await Promise.all([
-        refreshTrainLive().catch(() => false),
-        refreshWeatherLive().catch(() => false),
-      ]);
-      if (t || w) { lastLive = Date.now(); renderHeader(berlinNow().time); }
+      const w = await refreshWeatherLive().catch(() => false);
+      if (w) { lastLive = Date.now(); renderHeader(berlinNow().time); }
     } finally {
       btn.classList.remove("spin");
     }
@@ -399,7 +286,7 @@
 
   renderHeader();
   renderWarning(DATA.train);
-  renderTrain(DATA.train, false);
+  renderTrain(DATA.train);
   renderWeather(false);
   renderNews();
   initMyLocation();
