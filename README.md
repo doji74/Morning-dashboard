@@ -79,7 +79,7 @@ Push-Nachricht** über **ntfy**.
 
 **Push** (ntfy, lautlos)
 - Wetter, nächste Bahn, 3 Top-Schlagzeilen und der Link zur Seite
-- Wird mit `Priority: min` gesendet: Die Nachricht kommt an, macht aber keinen Ton.
+- Wird mit `Priority: low` gesendet: Die Nachricht erscheint in der Benachrichtigungsleiste, macht aber keinen Ton.
 
 ---
 
@@ -219,21 +219,22 @@ Ab jetzt läuft alles automatisch, jeden Montag bis Freitag um 04:15 Uhr.
 
 ### 7. ntfy-Kanal auf lautlos stellen
 
-Die Nachrichten werden mit `Priority: min` (niedrigste Priorität) verschickt.
-Die ntfy-App sortiert jede Priorität in einen eigenen Android-Benachrichtigungskanal.
-Diesen Kanal stellst du einmal auf lautlos:
+Die Nachrichten werden mit `Priority: low` (niedrige Priorität) verschickt. Die ntfy-App
+zeigt sie damit in der Benachrichtigungsleiste an, normalerweise ohne Ton. Jede Priorität
+hat in Android einen eigenen Benachrichtigungskanal. Zur Sicherheit stellst du diesen
+Kanal einmal ausdrücklich auf lautlos:
 
 1. Warte, bis die erste Nachricht angekommen ist (Schritt 6).
 2. Öffne die Android-**Einstellungen → Apps → ntfy → Benachrichtigungen**.
    Alternativ: In der Benachrichtigungsleiste lange auf eine ntfy-Nachricht drücken
    und auf das Zahnrad tippen.
 3. Du siehst eine Liste von Kanälen, z. B. „Min priority“, „Low priority“,
-   „Default priority“ … (auf Deutsch z. B. „Minimale Priorität“).
-4. Tippe auf den Kanal für die **minimale Priorität** und wähle **Lautlos**.
-   Schalte bei Bedarf auch Vibration und „Pop-up auf dem Bildschirm“ aus.
-5. Optional, falls die Nachricht wieder in der Statusleiste auftauchen soll:
-   „Benachrichtigungen minimieren“ ausschalten. Je nach Hersteller (Samsung,
-   Pixel, Xiaomi …) heißen die Punkte etwas anders.
+   „Default priority“ … (auf Deutsch z. B. „Niedrige Priorität“).
+4. Tippe auf den Kanal für die **niedrige Priorität** („Low priority“) und wähle
+   **Lautlos**. Schalte bei Bedarf auch Vibration und „Pop-up auf dem Bildschirm“ aus.
+5. „Benachrichtigungen minimieren“ sollte ausgeschaltet sein, damit die Nachricht in
+   der Benachrichtigungsleiste erscheint. Je nach Hersteller (Samsung, Pixel,
+   Xiaomi …) heißen die Punkte etwas anders.
 
 In der ntfy-App kannst du zusätzlich beim Topic (antippen → ⋮ → **Einstellungen**)
 die Benachrichtigungen feiner einstellen.
@@ -360,7 +361,8 @@ des Tages.
 | Fehler bei „Auf GitHub Pages veröffentlichen“ | In *Settings → Pages* muss als Source **GitHub Actions** gewählt sein. |
 | Keine Push-Nachricht | Secret `NTFY_TOPIC` genau so geschrieben? Gleiches Topic in der App abonniert? Im Workflow-Log den Schritt „Push-Nachricht“ ansehen. |
 | Workflow rot, im Log „ntfy-Fehler 404“ | Im Secret `NTFY_TOPIC` steht etwas anderes als der reine Topic-Name. Richtig ist z. B. `morgen-dortmund-7f3k9q2x`, ohne Leerzeichen, ohne Umlaute, ohne Anführungszeichen. Eine ganze Adresse wie `https://ntfy.sh/…` wird inzwischen automatisch erkannt. Secrets kann man nicht ansehen, nur überschreiben: *Settings → Secrets and variables → Actions → NTFY_TOPIC → Update*. |
-| Push macht doch Ton | Schritt 7: Den Kanal für die **minimale** Priorität auf lautlos stellen. |
+| Push macht doch Ton | Schritt 7: Den Kanal für die **niedrige** Priorität („Low priority“) auf lautlos stellen. |
+| Push kommt nur in der ntfy-App an, nicht in der Benachrichtigungsleiste | In der ntfy-App beim Topic unter ⋮ → Einstellungen die Mindest-Priorität auf „Beliebige“ stellen und in Android beim Kanal „Low priority“ das Minimieren ausschalten. |
 | Eine Nachrichten-Rubrik ist leer | Ein Feed hat seine Adresse geändert. Unter der Kachel steht „Nicht erreichbar: …“. Mit `--check-feeds` testen und in `config.json` ersetzen, z. B. durch einen Google-News-Feed. |
 | Bahn zeigt „nicht verfügbar“ | Transitous war beim Lauf nicht erreichbar. Auf ⟳ tippen, dann lädt die Seite die Bahn live nach. Im Workflow-Log steht der genaue Grund. |
 | Bahn zeigt falsche oder keine Züge | Im Workflow-Log steht, welcher Bahnhof gefunden wurde („Bahn: Dortmund Hbf -> …“). Stimmt er nicht, Namen und Koordinaten in `config.json` prüfen. |

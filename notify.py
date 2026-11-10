@@ -54,7 +54,7 @@ def main() -> int:
 
     headers = {
         "Title": "Guten Morgen - Dashboard ist fertig",
-        "Priority": "min",          # lautlos: kein Ton, keine Vibration
+        "Priority": "low",          # sichtbar in der Benachrichtigungsleiste, ohne Ton
         "Tags": "sunrise",
     }
     if page_url:
