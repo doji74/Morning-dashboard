@@ -1,15 +1,20 @@
 name: Morgen-Dashboard
 
 # Ziel: Mo–Fr um 04:15 Uhr deutscher Zeit (Europe/Berlin).
-# GitHub-Cron läuft immer in UTC und kennt keine Sommerzeit, daher zwei Einträge:
+# GitHub-Cron läuft immer in UTC und kennt keine Sommerzeit:
 #   Winterzeit (MEZ  = UTC+1): 04:15 Berlin = 03:15 UTC
 #   Sommerzeit (MESZ = UTC+2): 04:15 Berlin = 02:15 UTC
-# Der Job "zeitcheck" lässt nur den Lauf durch, der zur aktuellen Zeitzone passt
-# und bei dem es in Berlin gerade 04:xx Uhr ist. Der andere Lauf wird übersprungen.
+# GitHub startet geplante Läufe oft stark verspätet (beobachtet: bis zu 8 Stunden).
+# Deshalb gibt es weitere Einträge als Reserve. Der Job "zeitcheck" baut nur,
+# wenn es in Berlin zwischen 04:00 und 22:59 Uhr ist UND die Seite heute noch
+# nicht gebaut wurde. So gibt es genau einen Build (und einen Push) pro Werktag,
+# auch wenn GitHub sich verspätet.
 on:
   schedule:
-    - cron: "15 3 * * 1-5"   # Winterzeit
-    - cron: "15 2 * * 1-5"   # Sommerzeit
+    - cron: "15 2 * * 1-5"   # 04:15 Sommerzeit / 03:15 Winterzeit (zu früh -> übersprungen)
+    - cron: "15 3 * * 1-5"   # 04:15 Winterzeit / 05:15 Sommerzeit
+    - cron: "45 3 * * 1-5"   # Reserve
+    - cron: "15 5 * * 1-5"   # Reserve
   workflow_dispatch:          # manuell starten (Actions -> Morgen-Dashboard -> Run workflow)
     inputs:
       notify:
@@ -36,27 +41,38 @@ jobs:
         env:
           EVENT: ${{ github.event_name }}
           SCHEDULE: ${{ github.event.schedule }}
+          DATA_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/data.json
         run: |
-          HOUR=$(TZ=Europe/Berlin date +%H)
-          OFFSET=$(TZ=Europe/Berlin date +%z)   # +0100 im Winter, +0200 im Sommer
-          if [ "$OFFSET" = "+0200" ]; then EXPECTED="15 2 * * 1-5"; else EXPECTED="15 3 * * 1-5"; fi
+          TODAY=$(TZ=Europe/Berlin date +%F)
+          HOUR=$((10#$(TZ=Europe/Berlin date +%H)))
           echo "Berlin: $(TZ=Europe/Berlin date '+%a %d.%m.%Y %H:%M %Z') | Auslöser: $EVENT '$SCHEDULE'"
           if [ "$EVENT" != "schedule" ]; then
             echo "Manueller Start – läuft immer."
             echo "run=true" >> "$GITHUB_OUTPUT"
-          elif [ "$HOUR" = "04" ] && [ "$SCHEDULE" = "$EXPECTED" ]; then
-            echo "Es ist 04:xx Uhr in Berlin – los geht's."
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "Nicht 04:xx Uhr in Berlin oder falscher Cron-Eintrag für die aktuelle Zeitzone – übersprungen."
+            exit 0
+          fi
+          if [ "$HOUR" -lt 4 ] || [ "$HOUR" -gt 22 ]; then
+            echo "Außerhalb von 04:00–22:59 Uhr – übersprungen."
             echo "run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Wurde heute schon gebaut? Stand der veröffentlichten Seite prüfen.
+          GENERATED=$(curl -fsSL --max-time 20 "$DATA_URL?nocache=$(date +%s)" \
+                      | jq -r '.generated // empty' 2>/dev/null || true)
+          echo "Veröffentlichter Stand: ${GENERATED:-unbekannt}"
+          if [[ "$GENERATED" == "$TODAY"* ]]; then
+            echo "Heute schon gebaut – übersprungen."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Heute noch nicht gebaut – los geht's."
+            echo "run=true" >> "$GITHUB_OUTPUT"
           fi
 
   dashboard:
     needs: zeitcheck
     if: needs.zeitcheck.outputs.run == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 20        # Start 04:15 + max. 20 Min -> spätestens ca. 04:35 fertig
+    timeout-minutes: 20        # ein Lauf dauert normalerweise 1–2 Minuten
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
