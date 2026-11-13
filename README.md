@@ -322,31 +322,60 @@ python -m http.server 8000 -d site      # dann http://localhost:8000 im Browser 
 ## Wie die Zeitsteuerung funktioniert
 
 GitHub-Zeitpläne (cron) laufen immer in **UTC** und kennen keine Sommerzeit.
-Deshalb gibt es zwei Einträge:
+04:15 Uhr in Berlin ist im Winter 03:15 UTC und im Sommer 02:15 UTC.
 
-| Cron (UTC) | entspricht in Berlin | wann gültig |
-|---|---|---|
-| `15 3 * * 1-5` | 04:15 MEZ | Winterzeit (Ende Okt. bis Ende März) |
-| `15 2 * * 1-5` | 04:15 MESZ | Sommerzeit (Ende März bis Ende Okt.) |
+**Wichtig:** GitHub startet geplante Läufe oft deutlich verspätet. Beobachtet wurden
+bis zu 8 Stunden, besonders bei Repositories mit wenig Aktivität. Deshalb gibt es
+vier Einträge, zwei davon als Reserve:
 
-Jeden Werktag starten also zwei Läufe. Der erste Job (`zeitcheck`) prüft:
+| Cron (UTC) | entspricht in Berlin (Winter / Sommer) |
+|---|---|
+| `15 2 * * 1-5` | 03:15 / **04:15** |
+| `15 3 * * 1-5` | **04:15** / 05:15 |
+| `45 3 * * 1-5` | 04:45 / 05:45 (Reserve) |
+| `15 5 * * 1-5` | 06:15 / 07:15 (Reserve) |
 
-1. Ist es in Berlin gerade **04:xx Uhr**?
-2. Passt der auslösende Cron-Eintrag zur aktuellen Zeitzone (Winter oder Sommer)?
+Der erste Job (`zeitcheck`) entscheidet bei jedem Lauf:
 
-Nur wenn beides stimmt, wird gebaut. Der andere Lauf endet nach wenigen Sekunden als
-„übersprungen“. Die zweite Prüfung verhindert, dass bei verspäteten Läufen doppelt
-gebaut wird. Ein manueller Start über **Run workflow** läuft immer.
+1. Ist es in Berlin zwischen **04:00 und 22:59 Uhr**? Sonst überspringen.
+2. Wurde die Seite **heute schon gebaut**? Dazu liest er den Stand der veröffentlichten
+   `data.json`. Wenn ja, überspringen.
 
-Der Bau-Job hat ein Zeitlimit von 20 Minuten (`timeout-minutes: 20`). Normalerweise
-dauert er 1–2 Minuten und ist damit lange vor 04:45 Uhr fertig.
+So gibt es pro Werktag **genau einen** Build und eine Push-Nachricht, auch wenn GitHub
+sich verspätet. Kommt GitHub pünktlich, ist die Seite um ca. 04:17 Uhr fertig. Kommt
+GitHub später, wird eben dann gebaut, statt den Tag auszulassen. Ein manueller Start
+über **Run workflow** läuft immer.
 
-> **Hinweis:** GitHub startet geplante Workflows bei hoher Last manchmal verspätet,
-> in seltenen Fällen um mehr als 45 Minuten. Fällt der Start dadurch hinter 04:59 Uhr,
-> wird der Lauf wegen der 04:xx-Regel übersprungen. Für diesen Tag bleibt dann die
-> Seite vom Vortag stehen. Bahn und Wetter lädt die Seite trotzdem live nach.
-> Außerdem pausiert GitHub Zeitpläne in Repositories, in denen 60 Tage lang nichts
+> **Wenn es wirklich pünktlich um 04:15 Uhr sein soll:** Dann muss ein externer Dienst
+> den Workflow anstoßen, z. B. der kostenlose [cron-job.org](https://cron-job.org).
+> Siehe [Pünktlicher Start mit cron-job.org](#pünktlicher-start-mit-cron-joborg-optional).
+>
+> GitHub pausiert Zeitpläne außerdem in Repositories, in denen 60 Tage lang nichts
 > passiert ist. Dann kommt eine E-Mail, und ein Klick reaktiviert den Zeitplan.
+
+### Pünktlicher Start mit cron-job.org (optional)
+
+1. **Token anlegen:** Auf GitHub oben rechts auf dein Profilbild → **Settings →
+   Developer settings → Personal access tokens → Fine-grained tokens →
+   Generate new token**.
+   - *Token name*: `morgen-dashboard-cron`, *Expiration*: z. B. 1 Jahr
+   - *Repository access*: **Only select repositories** → `Morning-dashboard`
+   - *Permissions → Repository permissions → Actions*: **Read and write**
+   - **Generate token** und den Token (beginnt mit `github_pat_`) kopieren.
+2. **Cronjob anlegen:** Auf https://cron-job.org kostenlos registrieren, dann
+   **Create cronjob**:
+   - *URL*: `https://api.github.com/repos/DEIN-NAME/Morning-dashboard/actions/workflows/dashboard.yml/dispatches`
+   - *Zeitplan*: Benutzerdefiniert, Montag bis Freitag, **04:15 Uhr**, Zeitzone **Europe/Berlin**
+   - Unter *Erweitert*: Methode **POST**, Request-Body `{"ref":"main","inputs":{"notify":"true"}}`
+   - Header:
+     - `Authorization`: `Bearer github_pat_…` (dein Token)
+     - `Accept`: `application/vnd.github+json`
+     - `Content-Type`: `application/json`
+3. Speichern und mit **Test run** prüfen: Unter *Actions* auf GitHub sollte sofort ein
+   neuer Lauf erscheinen.
+
+Die Zeitpläne von GitHub bleiben als Rückfall aktiv. Sie erkennen, dass heute schon
+gebaut wurde, und überspringen sich dann.
 
 Feiertage erkennt das Dashboard nicht. An Feiertagen zeigt es einfach den Fahrplan
 des Tages.
@@ -367,6 +396,7 @@ des Tages.
 | Bahn zeigt „nicht verfügbar“ | Transitous war beim Lauf nicht erreichbar. Auf ⟳ tippen, dann lädt die Seite die Bahn live nach. Im Workflow-Log steht der genaue Grund. |
 | Bahn zeigt falsche oder keine Züge | Im Workflow-Log steht, welcher Bahnhof gefunden wurde („Bahn: Dortmund Hbf -> …“). Stimmt er nicht, Namen und Koordinaten in `config.json` prüfen. |
 | „Mein Standort“ geht nicht | Standortfreigabe für Chrome bzw. die Seite erlauben (*Einstellungen → Apps → Chrome → Berechtigungen → Standort*). |
+| Nachrichten seit Tagen nicht aktualisiert | Unter *Actions* nachsehen, ob die Läufe nur „zeitcheck“ ausführen. Im Log von „zeitcheck“ steht der Grund. Mit **Run workflow** kannst du jederzeit von Hand aktualisieren. |
 | Seite zeigt alte Daten | Auf ⟳ tippen. Bahn und Wetter werden dann live geladen. Nachrichten gibt es nur vom morgendlichen Build. |
 
 Datenquellen: [Open-Meteo](https://open-meteo.com) (CC BY 4.0),
