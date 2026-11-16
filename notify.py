@@ -48,6 +48,9 @@ def main() -> int:
 
     data = json.loads(Path(args.data).read_text(encoding="utf-8"))
     page_url = os.environ.get("PAGE_URL", "").strip()
+    if page_url.endswith("/"):
+        # Die installierte App gilt nur für index.html (damit /fitness/ eine eigene App sein kann)
+        page_url += "index.html"
     body = data.get("push_text") or "Dein Morgen-Dashboard ist aktualisiert."
     if page_url:
         body += f"\n\n{page_url}"

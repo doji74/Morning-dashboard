@@ -3,6 +3,7 @@
   "short_name": "Heimkraft",
   "description": "12-Wochen-Ganzkörperplan für zu Hause mit Kettlebell und Eigengewicht",
   "lang": "de",
+  "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
