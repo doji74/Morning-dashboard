@@ -401,3 +401,29 @@ des Tages.
 
 Datenquellen: [Open-Meteo](https://open-meteo.com) (CC BY 4.0),
 [Transitous](https://transitous.org) (Fahrplandaten u. a. von DELFI), RSS-Feeds der genannten Medien.
+
+---
+
+## Heimkraft – Fitness-App (Ordner `fitness/`)
+
+Eigenständige, installierbare Web-App für einen **12-Wochen-Ganzkörperplan zu Hause**
+mit Kettlebell und Calisthenics (Eigengewicht). Sie wird automatisch zusammen mit dem
+Dashboard veröffentlicht unter:
+
+`https://DEIN-NAME.github.io/Morning-dashboard/fitness/`
+
+**Funktionen**
+
+- 3 Phasen (Fundament, Aufbau, Kraft & Power), je 3 Ganzkörper-Einheiten pro Woche;
+  die Übungen wechseln jede Woche, die Bewegungsmuster (Hüfte, Beine, Drücken, Ziehen, Rumpf) bleiben.
+- 35 Übungen mit animierter Strichfigur (Zeitlupe möglich), Schritt-für-Schritt-Anleitung,
+  häufigen Fehlern, Leichter/Schwerer-Varianten und Link zu Technik-Videos auf YouTube.
+- Satz-Protokoll (Wiederholungen, kg) mit „Letztes Mal“-Anzeige, Pausentimer mit Ton und Vibration.
+- Fortschritt: Trainingskalender, Testwerte Woche 1 vs. Woche 12, Schalter „ohne Klimmzugstange“.
+- Funktioniert offline; Daten bleiben nur auf dem Handy (localStorage).
+
+**Auf dem Android-Handy installieren:** Link in Chrome öffnen → Menü (⋮) →
+**App installieren** bzw. **Zum Startbildschirm hinzufügen**.
+
+Die App ist eine einzige Datei (`fitness/index.html`) ohne Build-Schritt;
+`build_dashboard.py` kopiert den Ordner nach `site/fitness/`.

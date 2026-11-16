@@ -1,0 +1,17 @@
+{
+  "name": "Heimkraft – Kettlebell & Calisthenics",
+  "short_name": "Heimkraft",
+  "description": "12-Wochen-Ganzkörperplan für zu Hause mit Kettlebell und Eigengewicht",
+  "lang": "de",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#151a21",
+  "theme_color": "#151a21",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

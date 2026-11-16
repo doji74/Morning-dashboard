@@ -1,0 +1,1314 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!--PWA-->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#151a21">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<!--/PWA-->
+<title>Heimkraft</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Layout: mobile App-Hülle, eine Spalte (max. 560px), feste Tab-Leiste unten.
+   Farbwelt: Gusseisen-Grau mit Kobalt als Bedienfarbe, Kupfer für die Kettlebell. */
+:root{
+  --bg:#eef1f4; --surface:#ffffff; --surface2:#f6f8fa; --ink:#151a21; --muted:#5b6573;
+  --line:#d6dce3; --accent:#1f5fd1; --accent-ink:#ffffff; --accent-soft:#e3ecfb;
+  --kb:#c96a14; --good:#1d8a57; --good-soft:#dff3e8; --warn:#a86400;
+  --fig:#1d2530; --far:#9ea9b6; --prop:#c9d1da;
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --r:12px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1318; --surface:#171c23; --surface2:#1d232b; --ink:#e7ebf0; --muted:#97a2b0;
+  --line:#2a323c; --accent:#80a7ff; --accent-ink:#0b1426; --accent-soft:#1c2a45;
+  --kb:#f0954a; --good:#4cc38a; --good-soft:#15301f; --warn:#e9a43a;
+  --fig:#dde3ea; --far:#5b6674; --prop:#2f3843; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1318; --surface:#171c23; --surface2:#1d232b; --ink:#e7ebf0; --muted:#97a2b0;
+  --line:#2a323c; --accent:#80a7ff; --accent-ink:#0b1426; --accent-soft:#1c2a45;
+  --kb:#f0954a; --good:#4cc38a; --good-soft:#15301f; --warn:#e9a43a;
+  --fig:#dde3ea; --far:#5b6674; --prop:#2f3843; color-scheme:dark}
+
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--f-body);-webkit-tap-highlight-color:transparent}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--surface)}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h1,h2,h3{font-family:var(--f-display);font-weight:700;line-height:1.1;margin:0;text-wrap:balance;letter-spacing:.01em}
+.num{font-variant-numeric:tabular-nums}
+
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--surface);border-bottom:1px solid var(--line)}
+.wrap{max-width:560px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.top .wrap{display:flex;align-items:center;gap:12px;padding-block:10px}
+.brand{font-family:var(--f-display);font-size:24px;font-weight:700;letter-spacing:.02em;display:flex;align-items:center;gap:8px}
+.brand svg{width:22px;height:22px}
+.top .chip{margin-left:auto}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:99px;background:var(--accent-soft);color:var(--accent);font-size:12.5px;font-weight:600;white-space:nowrap}
+.chip.kb{background:color-mix(in srgb,var(--kb) 16%,transparent);color:var(--kb)}
+.chip.good{background:var(--good-soft);color:var(--good)}
+.chip.plain{background:var(--surface2);color:var(--muted)}
+
+main .wrap{padding-block:16px 140px;display:flex;flex-direction:column;gap:16px}
+.view[hidden]{display:none!important}
+.view{display:flex;flex-direction:column;gap:16px}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+.pad{padding:14px 16px}
+.eyebrow{font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+
+/* Kopf des Trainings */
+.hero{display:flex;flex-direction:column;gap:10px}
+.hero-row{display:flex;align-items:center;gap:10px}
+.hero h1{font-size:34px}
+.hero .nav{margin-left:auto;display:flex;gap:6px}
+.iconbtn{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center}
+.iconbtn:disabled{opacity:.35;cursor:default}
+.iconbtn svg{width:18px;height:18px}
+.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.fact{background:var(--surface2);border-radius:10px;padding:8px 10px}
+.fact b{display:block;font-family:var(--f-display);font-size:22px;line-height:1.1}
+.fact span{font-size:12px;color:var(--muted)}
+.note{font-size:14px;border-left:3px solid var(--accent);padding:2px 0 2px 10px}
+
+.sec-h{display:flex;align-items:baseline;gap:8px;padding:0 2px}
+.sec-h h2{font-size:22px}
+.sec-h .muted{font-size:13px}
+
+/* Aufwärmen / Cool-down Liste */
+.list{display:flex;flex-direction:column}
+.li{display:flex;align-items:center;gap:12px;padding:8px 12px;border-top:1px solid var(--line);background:none;border-left:0;border-right:0;border-bottom:0;text-align:left;width:100%}
+.li:first-child{border-top:0}
+.li .fig{width:56px;flex:none}
+.li .t{flex:1;min-width:0}
+.li .t b{font-weight:600;display:block}
+.li .t span{font-size:13px;color:var(--muted)}
+.li .go{color:var(--muted);flex:none}
+
+/* Übungskarte im Training */
+.ex{overflow:hidden}
+.ex-head{display:flex;gap:12px;padding:12px 14px 10px;align-items:center;background:none;border:0;width:100%;text-align:left}
+.ex-head .fig{width:92px;flex:none;border-radius:8px;background:var(--surface2)}
+.ex-head .t{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.ex-head h3{font-size:21px}
+.dose{font-family:var(--f-display);font-size:19px;font-weight:600;color:var(--accent)}
+.ex-head .meta{font-size:12.5px;color:var(--muted)}
+.slot{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.last{font-size:12.5px;color:var(--muted);padding:0 14px 8px}
+.sets{display:flex;flex-direction:column;gap:6px;padding:4px 14px 14px}
+.set{display:grid;grid-template-columns:52px 1fr 1fr 44px;gap:8px;align-items:center}
+.set.nokg{grid-template-columns:52px 1fr 44px}
+.set label{font-size:12.5px;color:var(--muted);font-weight:600}
+.field{position:relative}
+.field input{width:100%;height:40px;border-radius:9px;border:1px solid var(--line);background:var(--surface2);padding:0 40px 0 10px;font-variant-numeric:tabular-nums;font-size:16px}
+.field i{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-style:normal;font-size:12px;color:var(--muted);pointer-events:none}
+.check{width:44px;height:40px;border-radius:9px;border:1.5px solid var(--line);background:var(--surface);display:grid;place-items:center;color:var(--muted)}
+.check svg{width:20px;height:20px}
+.check[aria-pressed="true"]{background:var(--good);border-color:var(--good);color:var(--surface)}
+.set.done input{border-color:color-mix(in srgb,var(--good) 45%,var(--line))}
+
+.finisher{padding:14px 16px;display:flex;flex-direction:column;gap:8px;border-style:dashed}
+.finisher h3{font-size:20px}
+.links{display:flex;flex-wrap:wrap;gap:6px}
+.linkchip{border:1px solid var(--line);background:var(--surface2);border-radius:99px;padding:4px 10px;font-size:13px}
+
+.btn{height:48px;border-radius:12px;border:0;background:var(--accent);color:var(--accent-ink);font-weight:600;font-size:16px;padding:0 18px;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn.ghost{background:var(--surface);color:var(--ink);border:1px solid var(--line)}
+.btn.good{background:var(--good);color:var(--surface)}
+.btn.danger{background:transparent;color:#c0392b;border:1px solid currentColor}
+.btn.block{width:100%}
+.done-banner{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--good-soft);color:var(--good);border-radius:var(--r);font-weight:600}
+
+/* Plan */
+.phase{display:flex;flex-direction:column;gap:8px}
+.phase-h{padding:0 2px;display:flex;flex-direction:column;gap:2px}
+.phase-h h2{font-size:24px}
+.week{overflow:hidden}
+.week-h{display:flex;align-items:center;gap:10px;padding:12px 14px;width:100%;background:none;border:0;text-align:left}
+.week-h b{font-family:var(--f-display);font-size:20px;min-width:84px}
+.dots{display:flex;gap:5px;margin-left:auto}
+.dot{width:12px;height:12px;border-radius:50%;border:1.5px solid var(--line)}
+.dot.on{background:var(--good);border-color:var(--good)}
+.dot.now{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.week-b{padding:0 14px 14px;display:flex;flex-direction:column;gap:10px}
+.week-b .note{font-size:13.5px}
+.day{border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;background:var(--surface2)}
+.day-h{display:flex;align-items:center;gap:8px}
+.day-h b{font-family:var(--f-display);font-size:18px}
+.day ol{margin:0;padding-left:20px;font-size:13.5px}
+.day .open{margin-left:auto;font-size:13px;color:var(--accent);background:none;border:0;font-weight:600;padding:4px 0}
+.badge{font-size:11px;padding:1px 7px;border-radius:99px;font-weight:600}
+
+/* Übungsbibliothek */
+.filters{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.filters button{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:6px 14px;font-size:13.5px;font-weight:500;white-space:nowrap}
+.filters button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.tile{display:flex;flex-direction:column;gap:6px;padding:8px 8px 10px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+.tile .fig{border-radius:8px;background:var(--surface2)}
+.tile b{font-weight:600;font-size:14px;line-height:1.3;padding:0 2px}
+.tile span{font-size:12px;color:var(--muted);padding:0 2px}
+
+/* Figur */
+.fig{display:block;width:100%;aspect-ratio:4/3;max-width:100%}
+.fig .floor{stroke:var(--line);stroke-width:2}
+.fig .far{stroke:var(--far)}
+.fig .near{stroke:var(--fig)}
+.fig .head{fill:var(--fig)}
+.fig .limb{fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:6.5}
+.fig .torso{stroke-width:9.5}
+.fig .prop{fill:var(--prop)}
+.fig .bar{fill:var(--muted)}
+.fig .barline{stroke:var(--prop);stroke-width:3}
+.fig .kbb{fill:var(--kb)}
+.fig .kbh{fill:none;stroke:var(--kb);stroke-width:2.6}
+
+/* Detailansicht */
+.sheet{position:fixed;inset:0;z-index:50;background:var(--bg);overflow-y:auto;overscroll-behavior:contain}
+.sheet .wrap{padding-block:12px 40px;display:flex;flex-direction:column;gap:14px}
+.sheet-top{display:flex;align-items:center;gap:10px;position:sticky;top:0;background:var(--bg);padding-block:calc(env(safe-area-inset-top,0px) + 8px) 8px;z-index:2}
+.sheet-top h2{font-size:26px;flex:1;min-width:0}
+.stage{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:8px}
+.stage-ctl{display:flex;gap:8px;padding:6px 4px 2px;align-items:center}
+.stage-ctl button{border:1px solid var(--line);background:var(--surface2);border-radius:99px;padding:5px 12px;font-size:13px}
+.stage-ctl button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.block h3{font-size:19px;margin-bottom:6px}
+.block ol,.block ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.block p{margin:0}
+.err li::marker{color:#c0392b}
+.yt{display:flex;align-items:center;gap:10px;padding:12px 14px;text-decoration:none;color:var(--ink)}
+.yt svg{width:30px;height:30px;flex:none}
+.yt b{display:block}
+.yt span{font-size:13px;color:var(--muted)}
+
+/* Fortschritt */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{padding:12px;display:flex;flex-direction:column;gap:2px}
+.stat b{font-family:var(--f-display);font-size:30px;line-height:1}
+.stat span{font-size:12px;color:var(--muted)}
+.cal{display:grid;grid-template-columns:auto repeat(3,1fr);gap:4px 6px;align-items:center;font-size:13px}
+.cal .c{height:22px;border-radius:6px;background:var(--surface2);border:1px solid var(--line)}
+.cal .c.on{background:var(--good);border-color:var(--good)}
+.cal .c.now{border-color:var(--accent);border-width:2px}
+.cal .wl{color:var(--muted);font-variant-numeric:tabular-nums;padding-right:4px}
+.tests{width:100%;border-collapse:collapse;font-size:14px}
+.tests th{font-size:12px;color:var(--muted);text-align:left;font-weight:600;padding:4px 4px 6px}
+.tests td{padding:4px}
+.tests input{width:100%;height:36px;border-radius:8px;border:1px solid var(--line);background:var(--surface2);padding:0 8px;font-variant-numeric:tabular-nums}
+.toggle{display:flex;align-items:center;gap:12px;padding:12px 16px}
+.toggle .t{flex:1}
+.switch{width:50px;height:30px;border-radius:99px;background:var(--line);border:0;position:relative;flex:none}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:var(--surface);transition:transform .2s}
+.switch[aria-checked="true"]{background:var(--accent)}
+.switch[aria-checked="true"]::after{transform:translateX(20px)}
+.prose{display:flex;flex-direction:column;gap:10px;font-size:14.5px}
+.prose p{margin:0}
+.prose ul{margin:0;padding-left:20px}
+
+/* Tab-Leiste + Timer */
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+.tabs .wrap{display:grid;grid-template-columns:repeat(4,1fr)}
+.tabs a{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0 9px;text-decoration:none;color:var(--muted);font-size:11.5px;font-weight:600}
+.tabs a svg{width:22px;height:22px}
+.tabs a[aria-current="page"]{color:var(--accent)}
+.timer{position:fixed;left:0;right:0;bottom:calc(58px + env(safe-area-inset-bottom,0px));z-index:39;pointer-events:none}
+.timer .wrap{pointer-events:auto}
+.timer-box{display:flex;align-items:center;gap:10px;background:var(--ink);color:var(--bg);border-radius:14px;padding:10px 12px;box-shadow:0 8px 24px rgba(0,0,0,.25);position:relative;overflow:hidden;margin-bottom:8px}
+.timer-box b{font-family:var(--f-display);font-size:28px;font-variant-numeric:tabular-nums;min-width:64px}
+.timer-box .lbl{font-size:12.5px;opacity:.75;flex:1}
+.timer-box button{border:0;background:color-mix(in srgb,var(--bg) 18%,transparent);color:var(--bg);border-radius:9px;padding:7px 10px;font-size:13px;font-weight:600}
+.timer-box .prog{position:absolute;left:0;bottom:0;height:3px;background:var(--accent)}
+.timer-box.end{background:var(--good)}
+
+@media (max-width:380px){.facts{grid-template-columns:repeat(3,minmax(0,1fr))}.set{grid-template-columns:44px 1fr 1fr 44px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 9.5a3.5 3.5 0 1 1 7 0" fill="none" stroke="var(--kb)" stroke-width="2.4"/><circle cx="12" cy="15" r="6.5" fill="var(--kb)"/></svg>
+      Heimkraft
+    </div>
+    <span class="chip" id="topChip">Woche 1</span>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <section class="view" id="v-training" aria-label="Training"></section>
+    <section class="view" id="v-plan" aria-label="Plan" hidden></section>
+    <section class="view" id="v-uebungen" aria-label="Übungen" hidden></section>
+    <section class="view" id="v-fortschritt" aria-label="Fortschritt" hidden></section>
+  </div>
+</main>
+
+<div class="timer" id="timer" hidden>
+  <div class="wrap">
+    <div class="timer-box" id="timerBox">
+      <b id="timerVal">1:15</b>
+      <span class="lbl" id="timerLbl">Pause – atme tief durch</span>
+      <button type="button" id="tPlus">+15 s</button>
+      <button type="button" id="tSkip">Weiter</button>
+      <div class="prog" id="timerProg"></div>
+    </div>
+  </div>
+</div>
+
+<nav class="tabs" aria-label="Bereiche">
+  <div class="wrap">
+    <a href="#training" data-v="training"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6.5 7v10M17.5 7v10M3.5 9.5v5M20.5 9.5v5M6.5 12h11"/></svg>Training</a>
+    <a href="#plan" data-v="plan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Plan</a>
+    <a href="#uebungen" data-v="uebungen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="2.2"/><path d="M12 7.5v6.5M12 14l-4 6M12 14l4 6M6 10.5l6-1.5 6 1.5"/></svg>Übungen</a>
+    <a href="#fortschritt" data-v="fortschritt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 19h16M7 16v-4M12 16V8M17 16V5"/></svg>Fortschritt</a>
+  </div>
+</nav>
+
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" hidden></div>
+
+<script>
+"use strict";
+/* ================================================================
+   1) Strichfiguren-Animation
+   Posen werden über Gelenkwinkel bzw. Zielpunkte (inverse Kinematik)
+   beschrieben; dazwischen wird weich interpoliert. Gliedlängen bleiben
+   dadurch konstant. Winkel: 0° = nach unten, 90° = nach vorn (rechts),
+   180° = nach oben. Die Figur schaut immer nach rechts.
+   ================================================================ */
+const L = {T:40, N:5, R:8, UA:20, FA:19, TH:24, SH:24, FOOT:7};
+const dir = a => { const r = a*Math.PI/180; return [Math.sin(r), Math.cos(r)]; };
+const add = (p,q) => [p[0]+q[0], p[1]+q[1]];
+const mul = (p,k) => [p[0]*k, p[1]*k];
+const lerp = (a,b,s) => a+(b-a)*s;
+const lerp2 = (p,q,s) => [lerp(p[0],q[0],s), lerp(p[1],q[1],s)];
+const wrap = d => { d = ((d+180)%360+360)%360-180; return d; };
+const lerpA = (a,b,s) => a + wrap(b-a)*s;
+const deg = r => r*180/Math.PI;
+
+function ik(B, T, l1, l2, b){
+  const vx = T[0]-B[0], vy = T[1]-B[1];
+  let d = Math.hypot(vx,vy);
+  d = Math.max(Math.abs(l1-l2)+0.01, Math.min(l1+l2-0.01, d));
+  const phi = deg(Math.atan2(vx,vy));
+  const al = deg(Math.acos(Math.max(-1,Math.min(1,(l1*l1+d*d-l2*l2)/(2*l1*d)))));
+  const a1 = phi + b*al;
+  const J = add(B, mul(dir(a1), l1));
+  const a2 = deg(Math.atan2(T[0]-J[0], T[1]-J[1]));
+  return [a1, a2];
+}
+const T = (x,y,b) => ({t:[x,y], b});
+const R = (x,y,b) => ({r:[x,y], b});
+
+function limbAngles(base, spec, l1, l2, defB){
+  if (Array.isArray(spec)) return spec;
+  const tg = spec.t ? spec.t : add(base, spec.r);
+  return ik(base, tg, l1, l2, spec.b ?? defB);
+}
+function shoulderOf(p){ return add(p.h, mul(dir(p.t), L.T)); }
+
+function interp(P, Q, s){
+  const hip = lerp2(P.h, Q.h, s);
+  const t = lerpA(P.t, Q.t, s);
+  const hd = lerp(P.hd||0, Q.hd||0, s);
+  const S = add(hip, mul(dir(t), L.T));
+  const SP = shoulderOf(P), SQ = shoulderOf(Q);
+  const out = {hip, S, t, head: add(S, mul(dir(t+hd), L.N+L.R))};
+  const limb = (key, base, bP, bQ, l1, l2, defB) => {
+    const a = P[key], c = Q[key];
+    let ang;
+    const same = a && c && !Array.isArray(a) && !Array.isArray(c) &&
+      ((a.t && c.t) || (a.r && c.r)) && (a.b ?? defB) === (c.b ?? defB);
+    if (same){
+      const tg = a.t ? lerp2(a.t, c.t, s) : add(base, lerp2(a.r, c.r, s));
+      ang = ik(base, tg, l1, l2, a.b ?? defB);
+    } else {
+      const x = limbAngles(bP, a, l1, l2, defB), y = limbAngles(bQ, c, l1, l2, defB);
+      ang = [lerpA(x[0], y[0], s), lerpA(x[1], y[1], s)];
+    }
+    const J = add(base, mul(dir(ang[0]), l1));
+    const E = add(J, mul(dir(ang[1]), l2));
+    return {J, E, a2: ang[1]};
+  };
+  out.aN = limb('aN', S, SP, SQ, L.UA, L.FA, -1);
+  out.aF = limb('aF', S, SP, SQ, L.UA, L.FA, -1);
+  out.lN = limb('lN', hip, P.h, Q.h, L.TH, L.SH, 1);
+  out.lF = limb('lF', hip, P.h, Q.h, L.TH, L.SH, 1);
+  const fd = (s < .5 ? P.fd : Q.fd) || 1;
+  const fa = (P.fa !== undefined && Q.fa !== undefined) ? lerp(P.fa, Q.fa, s) : undefined;
+  for (const k of ['lN','lF']){
+    const a = fa !== undefined ? fa : out[k].a2 + 90*fd;
+    out[k].toe = add(out[k].E, mul(dir(a), L.FOOT));
+  }
+  const kb = P.kb || Q.kb;
+  if (kb){
+    const off = (P.kb && Q.kb) ? lerp2(P.kb.off, Q.kb.off, s) : kb.off;
+    const hand = kb.h === 'N' ? out.aN.E : kb.h === 'F' ? out.aF.E : lerp2(out.aN.E, out.aF.E, .5);
+    out.kb = {hand, c: add(hand, off), side: kb.h === 'F' ? 'F' : 'N'};
+  }
+  return out;
+}
+
+const ease = {
+  io: s => .5 - .5*Math.cos(Math.PI*s),
+  lin: s => s
+};
+
+/* Standard-Stand */
+const st = (x, o={}) => Object.assign({h:[x,92], t:180, aN:[4,2], aF:[-4,-2], lN:T(x+3,140), lF:T(x-3,140)}, o);
+const KBM = (dx=0, dy=9) => ({h:'M', off:[dx,dy]});
+const KBN = (dx=0, dy=9) => ({h:'N', off:[dx,dy]});
+
+const hike = (o={}) => Object.assign({h:[86,100], t:112, aN:[-25,-25], aF:[-22,-22], lN:T(114,140), lF:T(110,140), kb:KBM(-6,6)}, o);
+
+/* Liegestütz-Grundpositionen (Drehung um die Zehen) */
+const pushTop = {h:[93.5,117.8], t:114.9, aN:T(130,140,-1), aF:T(128,140,-1), lN:T(50,138), lF:T(52,138), fd:-1};
+const pushBot = {h:[97.8,133.6], t:95.2, aN:T(130,140,-1), aF:T(128,140,-1), lN:T(50,138), lF:T(52,138), fd:-1};
+const hang = (o={}) => Object.assign({h:[112,94], t:180, aN:T(116,16,-1), aF:T(114,16,-1), lN:[20,-50], lF:[12,-58]}, o);
+const pullTop = (o={}) => Object.assign({h:[102,62], t:177, aN:T(116,16,-1), aF:T(114,16,-1), lN:[24,-40], lF:[16,-50]}, o);
+const back = (o={}) => Object.assign({h:[72,132], t:90, aN:[-70,180], aF:[-70,180], lN:T(48,140,-1), lF:T(50,140,-1), fd:-1}, o);
+
+const PROP = {
+  bar:   {type:'bar', x:116, y:16},
+  bench: (x,y,w,h) => ({type:'rect', x, y, w, h}),
+  table: {type:'table', x:120.5, y:88}
+};
+
+const ANIM = {
+  kb_deadlift: {f:[
+    {h:[110,92], t:180, aN:[2,0], aF:[-2,0], lN:T(114,140), lF:T(110,140), kb:KBM()},
+    {h:[88,104], t:120, aN:[0,0], aF:[0,0], lN:T(114,140), lF:T(110,140), kb:KBM()}], d:[1.3,1.1], hold:[.35,.25]},
+  hip_hinge: {f:[
+    {h:[110,92], t:180, aN:R(10,9), aF:R(9,9), lN:T(114,140), lF:T(110,140)},
+    {h:[88,102], t:116, aN:R(10,9), aF:R(9,9), lN:T(114,140), lF:T(110,140)}], d:[1.2,1.2], hold:[.3,.3]},
+  kb_swing: {f:[ hike(),
+    {h:[110,92], t:183, aN:[92,92], aF:[90,90], lN:T(114,140), lF:T(110,140), kb:KBM(9,-1)}], d:[.42,.6], hold:[.05,.08]},
+  kb_swing_1h: {f:[ hike({aF:[-10,-5], kb:KBN(-6,6)}),
+    {h:[110,92], t:183, aN:[92,92], aF:[40,60], lN:T(114,140), lF:T(110,140), kb:KBN(9,-1)}], d:[.42,.6], hold:[.05,.08]},
+  kb_goblet_squat: {f:[
+    {h:[104,92], t:180, aN:R(10,9), aF:R(9,9), lN:T(110,140), lF:T(106,140), kb:KBN(3,6)},
+    {h:[84,118], t:148, aN:R(10,9), aF:R(9,9), lN:T(110,140), lF:T(106,140), kb:KBN(3,6)}], d:[1.4,1.1], hold:[.3,.5]},
+  air_squat: {f:[
+    st(104,{lN:T(110,140), lF:T(106,140)}),
+    {h:[84,118], t:148, aN:[95,95], aF:[93,93], lN:T(110,140), lF:T(106,140)}], d:[1.2,1], hold:[.25,.3]},
+  kb_reverse_lunge: {f:[
+    {h:[108,92], t:180, aN:R(10,9), aF:R(9,9), lN:T(112,140), lF:T(106,140), kb:KBN(3,6)},
+    {h:[100,98], t:180, aN:R(10,9), aF:R(9,9), lN:T(112,140), lF:T(86,128), kb:KBN(3,6)},
+    {h:[92,108], t:178, aN:R(10,9), aF:R(9,9), lN:T(112,140), lF:T(66,140), kb:KBN(3,6)}], path:[[0,.7,.3],[1,.6,0],[2,.8,.35],[1,.6,0]]},
+  split_squat: {f:[
+    {h:[90,97], t:180, aN:R(6,30), aF:R(5,30), lN:T(112,140), lF:T(68,140)},
+    {h:[90,112], t:180, aN:R(6,30), aF:R(5,30), lN:T(112,140), lF:T(68,140)}], d:[1.2,1], hold:[.25,.35]},
+  bulgarian: {props:[PROP.bench(36,118,34,22)], f:[
+    {h:[92,96], t:178, aN:R(10,9), aF:R(9,9), lN:T(116,140), lF:T(64,118), kb:KBN(3,6)},
+    {h:[90,114], t:165, aN:R(10,9), aF:R(9,9), lN:T(116,140), lF:T(64,118), kb:KBN(3,6)}], d:[1.3,1], hold:[.25,.35]},
+  box_pistol: {props:[PROP.bench(58,110,30,30)], f:[
+    {h:[104,92], t:180, aN:[90,90], aF:[88,88], lN:T(106,140), lF:[30,40]},
+    {h:[84,104], t:150, aN:[100,100], aF:[98,98], lN:T(106,140), lF:[80,86]}], d:[1.6,1.2], hold:[.3,.35]},
+  kb_sl_rdl: {f:[
+    {h:[104,92], t:180, aN:[0,0], aF:[2,0], lN:T(106,140), lF:[-8,-4], kb:KBN()},
+    {h:[88,95], t:96, aN:[0,0], aF:[0,0], lN:T(104,140), lF:[-84,-86], kb:KBN()}], d:[1.4,1.2], hold:[.3,.35]},
+  kb_row: {props:[PROP.bench(130,112,44,28)], f:[
+    {h:[86,94], t:105, aN:[0,0], aF:T(142,112,-1), lN:T(98,140), lF:T(74,140), kb:KBN()},
+    {h:[86,94], t:105, aN:[-110,0], aF:T(142,112,-1), lN:T(98,140), lF:T(74,140), kb:KBN()}], d:[.8,1.3], hold:[.2,.5]},
+  kb_press: {f:[
+    st(100,{aN:[15,165], aF:[6,2], kb:KBN(-3,6)}),
+    st(100,{aN:[168,174], aF:[6,2], kb:KBN(-3,6)})], d:[.9,1.3], hold:[.35,.35]},
+  kb_floor_press: {f:[
+    back({aN:[-70,180], aF:[-72,180], kb:KBN(2,-4)}),
+    back({aN:[180,180], aF:[-72,180], kb:KBN(2,-4)})], d:[.9,1.3], hold:[.35,.4]},
+  kb_clean: {f:[ hike({aF:[-10,-5], kb:KBN(-6,6)}),
+    st(110,{aN:[15,165], aF:[6,2], lN:T(114,140), lF:T(110,140), kb:KBN(-3,6)})], d:[.55,.75], hold:[.05,.45]},
+  kb_snatch: {f:[ hike({aF:[-10,-5], kb:KBN(-6,6)}),
+    st(110,{t:181, aN:[168,174], aF:[8,4], lN:T(114,140), lF:T(110,140), kb:KBN(-3,6)})], d:[.65,.8], hold:[.05,.45]},
+  kb_tgu: {f:[
+    {h:[110,132], t:-90, aN:[180,180], aF:[80,80], lN:T(132,140,1), lF:[90,90], kb:KBN(-3,5)},
+    {h:[110,132], t:-118, aN:[180,180], aF:[10,90], lN:T(132,140,1), lF:[90,90], kb:KBN(-3,5)},
+    {h:[110,132], t:-140, aN:[180,180], aF:[20,20], lN:T(132,140,1), lF:[90,90], kb:KBN(-3,5)},
+    {h:[110,114], t:-115, aN:[180,180], aF:T(84,138,1), lN:T(132,140,1), lF:T(154,138,1), kb:KBN(-3,5)},
+    {h:[106,108], t:178, aN:[180,180], aF:[0,0], lN:T(132,140,1), lF:T(80,140,1), kb:KBN(-3,5)},
+    {h:[118,92], t:180, aN:[180,180], aF:[4,2], lN:T(124,140), lF:T(116,140), kb:KBN(-3,5)}],
+    path:[[0,1,.5],[1,1,.4],[2,1,.4],[3,1.3,.4],[4,1.1,.4],[5,1.1,.8],[4,1.3,.4],[3,1.1,.4],[2,1,.4],[1,1,.4]]},
+  kb_halo: {f:[
+    st(100,{aN:R(13,-6), aF:R(12,-6), kb:KBM(0,-7)}),
+    st(100,{aN:R(3,-24), aF:R(2,-24), kb:KBM(0,-7)}),
+    st(100,{aN:R(-11,-12), aF:R(-12,-12), kb:KBM(0,-7)})], path:[[0,.8,.1],[1,.8,.05],[2,.8,.1],[1,.8,.05]]},
+  kb_suitcase_carry: {f:[
+    {h:[100,94], t:180, aN:[2,0], aF:[-14,-8], lN:T(114,140), lF:T(86,140), kb:KBN()},
+    {h:[100,91], t:180, aN:[2,0], aF:[0,0], lN:T(100,140), lF:T(104,128), kb:KBN()},
+    {h:[100,94], t:180, aN:[2,0], aF:[14,8], lN:T(86,140), lF:T(114,140), kb:KBN()},
+    {h:[100,91], t:180, aN:[2,0], aF:[0,0], lN:T(104,128), lF:T(100,140), kb:KBN()}],
+    path:[[0,.35,0],[1,.35,0],[2,.35,0],[3,.35,0]], ease:'lin'},
+  glute_bridge: {f:[
+    {h:[72,132], t:90, aN:[-84,-88], aF:[-84,-88], lN:T(50,140,-1), lF:T(52,140,-1), fd:-1},
+    {h:[74,114], t:64, aN:[-84,-88], aF:[-84,-88], lN:T(50,140,-1), lF:T(52,140,-1), fd:-1}], d:[1,1.2], hold:[.3,.8]},
+  pushup: {f:[pushTop, pushBot], d:[1.1,.8], hold:[.3,.2]},
+  incline_pushup: {props:[PROP.bench(96,110,48,30)], f:[
+    {h:[72.7,102.9], t:137, aN:T(112,110,-1), aF:T(110,110,-1), lN:T(40,138), lF:T(42,138), fd:-1},
+    {h:[81.6,114], t:120, aN:T(112,110,-1), aF:T(110,110,-1), lN:T(40,138), lF:T(42,138), fd:-1}], d:[1.1,.8], hold:[.3,.2]},
+  pike_pushup: {f:[
+    {h:[96,94], t:75, hd:-25, aN:T(134,140,-1), aF:T(132,140,-1), lN:T(74,138), lF:T(76,138), fd:-1},
+    {h:[98,96], t:52, hd:-20, aN:T(134,140,-1), aF:T(132,140,-1), lN:T(74,138), lF:T(76,138), fd:-1}], d:[1.2,.9], hold:[.3,.2]},
+  bench_dips: {props:[PROP.bench(34,108,42,32)], f:[
+    {h:[82,110], t:180, aN:T(76,108,-1), aF:T(74,108,-1), lN:T(114,140), lF:T(110,140)},
+    {h:[84,128], t:176, aN:T(76,108,-1), aF:T(74,108,-1), lN:T(114,140), lF:T(110,140)}], d:[1.1,.8], hold:[.3,.2]},
+  pullup: {props:[PROP.bar], f:[hang(), pullTop()], d:[1,1.3], hold:[.4,.35]},
+  negative_pullup: {props:[PROP.bar], f:[pullTop(), hang()], d:[4,1], hold:[.5,.5]},
+  australian_row: {props:[PROP.table], f:[
+    {h:[95.3,129.7], t:100, aN:T(120.5,88,1), aF:T(119,88,1), lN:T(48,138), lF:T(50,138), fa:180},
+    {h:[88.7,112.6], t:122, aN:T(120.5,88,1), aF:T(119,88,1), lN:T(48,138), lF:T(50,138), fa:180}], d:[1,1.3], hold:[.3,.45]},
+  scap_pull: {props:[PROP.bar], f:[hang({h:[112,95], lN:[15,-40], lF:[10,-50]}), hang({h:[112,90], lN:[15,-40], lF:[10,-50]})], d:[.8,.9], hold:[.3,.6]},
+  hanging_knee_raise: {props:[PROP.bar], f:[hang({lN:[8,-20], lF:[4,-24]}), hang({h:[110,94], t:176, lN:[100,8], lF:[96,4]})], d:[1,1.4], hold:[.3,.35]},
+  plank: {f:[
+    {h:[96.7,127.1], t:103.1, aN:[0,90], aF:[0,90], lN:T(50,138), lF:T(52,138), fd:-1},
+    {h:[96.7,125.8], t:104, aN:[0,90], aF:[0,90], lN:T(50,138), lF:T(52,138), fd:-1}], d:[1.8,1.8], hold:[.2,.2]},
+  hollow_hold: {f:[
+    {h:[80,134], t:98, hd:8, aN:[100,100], aF:[100,100], lN:[-160,-90], lF:[-156,-90]},
+    {h:[80,134], t:98, hd:8, aN:[100,100], aF:[100,100], lN:[-100,-100], lF:[-100,-100]}], d:[1.6,1.6], hold:[.8,1.2]},
+  dead_bug: {f:[
+    {h:[80,132], t:90, aN:[180,180], aF:[180,180], lN:[180,-90], lF:[180,-90]},
+    {h:[80,132], t:90, aN:[180,180], aF:[96,96], lN:[-95,-95], lF:[180,-90]}], d:[1.3,1.1], hold:[.3,.6]},
+  mountain_climber: {f:[
+    Object.assign({}, pushTop, {lN:T(50,138), lF:T(104,134)}),
+    Object.assign({}, pushTop, {lN:T(104,134), lF:T(52,138)})], d:[.32,.32], hold:[.02,.02]},
+  bird_dog: {f:[
+    {h:[80,116], t:112, aN:T(117,140,-1), aF:T(115,140,-1), lN:[0,-90], lF:[0,-90], fd:-1},
+    {h:[80,116], t:108, aN:[100,100], aF:T(115,140,-1), lN:[0,-90], lF:[-96,-96], fd:-1}], d:[1.1,1], hold:[.3,.8]},
+  arm_circles: {f:[
+    st(100,{aN:[0,0], aF:[180,180]}),
+    st(100,{aN:[120,120], aF:[300,300]}),
+    st(100,{aN:[240,240], aF:[60,60]})], path:[[0,.45,0],[1,.45,0],[2,.45,0]], ease:'lin'}
+};
+ANIM.chinup = ANIM.pullup;
+
+function svgEl(tag, attrs, parent){
+  const e = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+
+const figures = new Set();
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function buildPath(anim){
+  if (anim.path) return anim.path;
+  const n = anim.f.length, d = anim.d || [], h = anim.hold || [];
+  const idx = [...Array(n).keys()];
+  const seq = n > 2 ? idx.concat(idx.slice(1, -1).reverse()) : idx;
+  return seq.map((fi, k) => [fi, d[k % d.length] ?? 1, h[k % h.length] ?? .2]);
+}
+
+function makeFigure(id, opts={}){
+  const anim = ANIM[id];
+  const svg = svgEl('svg', {viewBox:'14 0 172 150', class:'fig', role:'img', 'aria-label':(EX[id]?.n || id)+' – Bewegungsablauf'});
+  if (!anim) return svg;
+  for (const p of anim.props || []){
+    if (p.type === 'rect') svgEl('rect', {x:p.x, y:p.y, width:p.w, height:p.h, rx:2.5, class:'prop'}, svg);
+    if (p.type === 'bar'){ svgEl('line', {x1:p.x, y1:p.y, x2:p.x+60, y2:p.y-6, class:'barline'}, svg); svgEl('circle', {cx:p.x, cy:p.y, r:3.4, class:'bar'}, svg); }
+    if (p.type === 'table'){ svgEl('rect', {x:p.x-3, y:p.y-1, width:70, height:5, rx:1.5, class:'prop'}, svg); svgEl('rect', {x:p.x+60, y:p.y+3, width:5, height:140-p.y-3, class:'prop'}, svg); }
+  }
+  svgEl('line', {x1:14, y1:141, x2:186, y2:141, class:'floor'}, svg);
+  const mk = cls => svgEl('polyline', {class:'limb '+cls}, svg);
+  const kbFar = svgEl('g', {}, svg);
+  const lF = mk('far'), aF = mk('far');
+  const torso = svgEl('line', {class:'limb torso near'}, svg);
+  const head = svgEl('circle', {r:L.R, class:'head'}, svg);
+  const lN = mk('near');
+  const kbNear = svgEl('g', {}, svg);
+  const aN = mk('near');
+  const kbParts = g => ({g, h:svgEl('circle', {r:3.8, class:'kbh'}, g), b:svgEl('circle', {r:6.8, class:'kbb'}, g)});
+  const KF = kbParts(kbFar), KN = kbParts(kbNear);
+  const pts = arr => arr.map(p => p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+  const path = buildPath(anim);
+  const total = path.reduce((s, p) => s + p[1] + p[2], 0);
+  const ef = ease[anim.ease || 'io'];
+  const fig = {svg, playing: !reduceMotion || opts.autoplay, visible: false, speed: 1, t: 0,
+    render(time){
+      let tt = time % total, i = 0;
+      while (tt > path[i][1] + path[i][2]){ tt -= path[i][1] + path[i][2]; i++; }
+      const [fi, dur, hold] = path[i];
+      const next = path[(i+1) % path.length][0];
+      const s = tt < hold ? 0 : ef(Math.min(1, (tt-hold)/dur));
+      const p = interp(anim.f[fi], anim.f[next], s);
+      lF.setAttribute('points', pts([p.hip, p.lF.J, p.lF.E, p.lF.toe]));
+      lN.setAttribute('points', pts([p.hip, p.lN.J, p.lN.E, p.lN.toe]));
+      aF.setAttribute('points', pts([p.S, p.aF.J, p.aF.E]));
+      aN.setAttribute('points', pts([p.S, p.aN.J, p.aN.E]));
+      torso.setAttribute('x1', p.hip[0]); torso.setAttribute('y1', p.hip[1]);
+      torso.setAttribute('x2', p.S[0]); torso.setAttribute('y2', p.S[1]);
+      head.setAttribute('cx', p.head[0]); head.setAttribute('cy', p.head[1]);
+      for (const [K, side] of [[KF,'F'],[KN,'N']]){
+        const on = p.kb && p.kb.side === side;
+        K.g.style.display = on ? '' : 'none';
+        if (on){ K.h.setAttribute('cx', p.kb.hand[0]); K.h.setAttribute('cy', p.kb.hand[1]);
+          K.b.setAttribute('cx', p.kb.c[0]); K.b.setAttribute('cy', p.kb.c[1]); }
+      }
+    }
+  };
+  // Startbild: Ende des ersten Bewegungsabschnitts (auch die ruhige Darstellung bei reduzierter Bewegung)
+  fig.t = path[0][1] + path[0][2];
+  fig.render(fig.t);
+  svg._fig = fig;
+  figures.add(fig);
+  io && io.observe(svg);
+  return svg;
+}
+
+const io = 'IntersectionObserver' in window ? new IntersectionObserver(es => {
+  for (const e of es) if (e.target._fig) e.target._fig.visible = e.isIntersecting;
+}) : null;
+
+let lastTs = 0;
+function loop(ts){
+  const dt = Math.min(.1, (ts - lastTs)/1000 || 0); lastTs = ts;
+  for (const f of figures){
+    if (!f.svg.isConnected){ figures.delete(f); io && io.unobserve(f.svg); continue; }
+    if (f.playing && (f.visible || !io)){ f.t += dt*f.speed; f.render(f.t); }
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* ================================================================
+   2) Übungen
+   ================================================================ */
+const yt = q => 'https://www.youtube.com/results?search_query=' + encodeURIComponent(q);
+const EX = {
+  kb_deadlift:{n:'Kettlebell-Kreuzheben', en:'Kettlebell Deadlift', cat:'kb', type:'str', kg:true,
+    mus:'Gesäß, Beinbeuger, unterer Rücken, Griff',
+    steps:['Füße hüftbreit, die Kettlebell steht mittig zwischen den Füßen auf Höhe der Knöchel.',
+      'Hüfte nach hinten schieben, als wolltest du mit dem Po eine Tür schließen. Rücken gerade, Blick schräg nach vorn unten.',
+      'Griff mit beiden Händen, Schultern weg von den Ohren, Achseln „zusammendrücken“ (Latissimus an).',
+      'Durch die Fersen in den Boden drücken und die Hüfte nach vorn bringen. Oben stehst du gerade, das Gesäß fest angespannt.'],
+    err:['Runder Rücken beim Greifen oder Ablassen.','Kniebeuge statt Hüftbeuge: Die Knie wandern weit nach vorn.','Oben nach hinten lehnen (Hohlkreuz).'],
+    tip:'Das ist die Grundlage für den Swing. Erst wenn das Kreuzheben sicher sitzt, kommt Schwung dazu. Unten einatmen, beim Hochkommen ausatmen.',
+    easier:'Kettlebell auf eine Erhöhung (Buch, Stufe) stellen.', harder:'Schwerere Glocke oder einbeinig (siehe Einbeiniges Kreuzheben).',
+    q:'kettlebell deadlift technique tutorial'},
+  kb_swing:{n:'Kettlebell Swing', en:'Two-Hand Swing', cat:'kb', type:'bal', kg:true,
+    mus:'Gesäß, Beinbeuger, Rumpf, Griff, Ausdauer',
+    steps:['Kettlebell etwa 30 cm vor den Füßen. Hüftbeuge wie beim Kreuzheben, Glocke greifen und leicht zu dir kippen.',
+      'Glocke kraftvoll zwischen die Beine nach hinten „hiken“ (wie beim Football-Snap). Die Unterarme berühren die Innenseiten der Oberschenkel.',
+      'Hüfte explosiv nach vorn strecken. Die Glocke schwebt durch den Hüftstoß bis auf Brusthöhe, die Arme sind nur Seile.',
+      'Oben stehst du wie ein Brett: Gesäß, Bauch und Oberschenkel fest. Glocke fallen lassen und erst spät, kurz vor dem Körper, wieder in die Hüfte gehen.'],
+    err:['Mit den Armen oder Schultern heben.','In die Kniebeuge gehen statt die Hüfte nach hinten zu schieben.','Glocke schwingt zu tief, auf Kniehöhe statt zwischen den Oberschenkeln.','Oben nach hinten lehnen.'],
+    tip:'Am höchsten Punkt kurz und kräftig durch die Nase ausatmen („tss“). Die Kraft kommt fast vollständig aus der Hüfte. Zum Beenden die Glocke wieder nach hinten hiken und kontrolliert vor dir abstellen.',
+    easier:'Kreuzheben üben und Swings nur bis Hüfthöhe.', harder:'Schwerere Glocke oder einarmiger Swing.',
+    q:'kettlebell swing technique hardstyle tutorial'},
+  kb_swing_1h:{n:'Einarmiger Swing', en:'One-Arm Swing', cat:'kb', type:'bal', side:true, kg:true, dose:['8','10–12','12'],
+    mus:'Gesäß, Beinbeuger, schräge Bauchmuskeln, Griff',
+    steps:['Wie der beidarmige Swing, aber eine Hand am Griff, der Daumen zeigt beim Hike nach hinten.',
+      'Schulter „verpacken“: Sie bleibt tief und zieht nicht nach vorn mit.',
+      'Hüftstoß, die Glocke schwebt auf Brusthöhe. Der Oberkörper dreht sich nicht mit.',
+      'Die freie Hand begleitet die Bewegung locker. Nach den Wiederholungen die Seite wechseln.'],
+    err:['Der Oberkörper rotiert zur Glocke hin.','Die Schulter wird nach vorn gerissen.','Zu schweres Gewicht, sodass Arm und Rücken die Arbeit übernehmen.'],
+    tip:'Ein guter Zwischenschritt zum Clean und Snatch. Erst üben, wenn der beidarmige Swing sauber und kraftvoll sitzt.',
+    easier:'Beidarmiger Swing.', harder:'Seitenwechsel in der Luft (Hand-to-Hand) oder Snatch.',
+    q:'one arm kettlebell swing technique'},
+  kb_goblet_squat:{n:'Goblet Squat', en:'Goblet Squat', cat:'kb', type:'str', kg:true,
+    mus:'Oberschenkel vorn, Gesäß, Rumpf',
+    steps:['Kettlebell an den Griffseiten („Hörnern“) vor der Brust halten, die Ellbogen zeigen nach unten.',
+      'Füße etwas breiter als hüftbreit, Zehen leicht nach außen.',
+      'Zwischen die Fersen absenken. Die Ellbogen gleiten innen an den Knien vorbei, die Brust bleibt oben.',
+      'Aus dem ganzen Fuß hochdrücken, oben das Gesäß anspannen.'],
+    err:['Fersen heben vom Boden ab.','Knie fallen nach innen.','Der Rücken rundet sich am tiefsten Punkt.'],
+    tip:'Unten 1–2 Sekunden halten und die Knie mit den Ellbogen sanft nach außen drücken. Das verbessert die Hüftbeweglichkeit. Oben einatmen, Bauch fest, beim Hochdrücken ausatmen.',
+    easier:'Ohne Gewicht, auf einen Stuhl setzen und wieder aufstehen.', harder:'Schwerere Glocke, 3 Sekunden langsam absenken.',
+    q:'kettlebell goblet squat technique'},
+  air_squat:{n:'Kniebeuge', en:'Air Squat', cat:'warm', type:'str',
+    mus:'Beine, Gesäß, Hüftbeweglichkeit',
+    steps:['Füße schulterbreit, Zehen leicht nach außen.','Hüfte nach hinten und unten, die Arme gehen zum Ausgleich nach vorn.','So tief, wie es mit geradem Rücken geht, dann hochdrücken.'],
+    err:['Fersen heben ab.','Knie fallen nach innen.'],
+    tip:'Im Aufwärmen locker und fließend, kein Krafttraining.', easier:'An einem Türrahmen festhalten.', harder:'Unten kurz halten.',
+    q:'bodyweight squat form'},
+  kb_reverse_lunge:{n:'Rückwärts-Ausfallschritt', en:'Goblet Reverse Lunge', cat:'kb', type:'str', side:true, kg:true,
+    mus:'Oberschenkel, Gesäß, Gleichgewicht',
+    steps:['Kettlebell vor der Brust (Goblet-Griff), aufrecht stehen.',
+      'Mit einem Bein einen großen Schritt nach hinten machen.',
+      'Senkrecht absenken, bis das hintere Knie knapp über dem Boden ist. Das vordere Knie bleibt über dem Mittelfuß.',
+      'Über die Ferse des vorderen Beins zurück in den Stand drücken.'],
+    err:['Das vordere Knie knickt nach innen.','Der Oberkörper kippt stark nach vorn.','Der Schritt ist zu kurz, die Ferse hebt ab.'],
+    tip:'Rückwärts ist gelenkschonender als vorwärts. Bei Gleichgewichtsproblemen erst ohne Gewicht und mit einer Hand an der Wand üben.',
+    easier:'Ohne Gewicht.', harder:'Kettlebell in Rack-Position oder schwerer.',
+    q:'goblet reverse lunge kettlebell'},
+  split_squat:{n:'Split Squat', en:'Split Squat', cat:'bw', type:'str', side:true,
+    mus:'Oberschenkel, Gesäß, Hüftbeuger-Dehnung',
+    steps:['Schrittstellung: ein Fuß vorn, einer weit hinten auf dem Fußballen. Hände an die Hüfte.',
+      'Senkrecht nach unten sinken, bis das hintere Knie fast den Boden berührt.',
+      'Über das vordere Bein wieder hochdrücken. Die Füße bleiben stehen.'],
+    err:['Zu schmale Stellung (wie auf einem Seil), dadurch wackelig.','Das Gewicht liegt auf dem hinteren Bein.'],
+    tip:'Die Vorstufe zum Bulgarian Split Squat. Füße etwa hüftbreit nebeneinander, wie auf Schienen.',
+    easier:'An einer Wand oder einem Stuhl festhalten.', harder:'Kettlebell in beiden Händen oder als Goblet halten.',
+    q:'split squat form tutorial'},
+  bulgarian:{n:'Bulgarian Split Squat', en:'Bulgarian Split Squat', cat:'bw', type:'str', side:true, kg:true,
+    mus:'Oberschenkel, Gesäß, Gleichgewicht',
+    steps:['Etwa einen großen Schritt vor einem Stuhl oder Sofa stehen. Den hinteren Fußrücken auf die Sitzfläche legen.',
+      'Optional eine Kettlebell vor der Brust halten.',
+      'Senkrecht absenken, bis das hintere Knie fast den Boden berührt. Der vordere Fuß steht vollständig auf.',
+      'Über das vordere Bein hochdrücken.'],
+    err:['Der vordere Fuß steht zu nah am Stuhl.','Das Gewicht wird ins hintere Bein verlagert.','Die Hüfte dreht sich zur Seite.'],
+    tip:'Leicht nach vorn geneigt trainierst du mehr das Gesäß, aufrecht mehr den vorderen Oberschenkel.',
+    easier:'Split Squat ohne Erhöhung.', harder:'Schwerere Kettlebell, langsames Absenken.',
+    q:'bulgarian split squat form'},
+  box_pistol:{n:'Pistol Squat zur Box', en:'Box Pistol Squat', cat:'bw', type:'str', side:true, dose:['5–6','6–8','6–8'],
+    mus:'Oberschenkel, Gesäß, Gleichgewicht, Hüftbeuger',
+    steps:['Vor einem Stuhl oder einer Box stehen, ein Bein leicht nach vorn anheben.',
+      'Die Arme nach vorn strecken (Gegengewicht) und auf einem Bein langsam auf die Box setzen. Nicht fallen lassen!',
+      'Kurz sitzen, Spannung halten und ohne Schwung auf einem Bein wieder aufstehen.'],
+    err:['Plumpsen lassen statt kontrolliert absetzen.','Das Knie fällt nach innen.','Die Ferse hebt ab.'],
+    tip:'Progression: Box schrittweise tiefer machen (Kissen weg, niedrigere Box). Mit einer leichten Kettlebell vor der Brust wird es oft leichter, weil sie als Gegengewicht wirkt.',
+    easier:'Höhere Box oder an einem Türrahmen festhalten.', harder:'Niedrigere Box, irgendwann ganz ohne.',
+    q:'box pistol squat progression'},
+  kb_sl_rdl:{n:'Einbeiniges Kreuzheben', en:'Single-Leg RDL', cat:'kb', type:'str', side:true, kg:true,
+    mus:'Beinbeuger, Gesäß, Fußgewölbe, Gleichgewicht',
+    steps:['Auf einem Bein stehen, das Knie leicht gebeugt. Die Kettlebell in der Hand gegenüber dem Standbein.',
+      'Hüfte nach hinten schieben, das freie Bein streckt sich nach hinten. Der Körper kippt wie eine Wippe.',
+      'Die Hüfte bleibt parallel zum Boden und öffnet sich nicht zur Seite.',
+      'Bis der Oberkörper fast waagerecht ist, dann über das Gesäß zurück in den Stand.'],
+    err:['Die Hüfte rotiert auf.','Runder Rücken.','Das Standbein ist komplett durchgestreckt.'],
+    tip:'Anfangs mit den Fingerspitzen der freien Hand an einer Wand balancieren. Langsam ist hier besser.',
+    easier:'Hintere Zehenspitze leicht am Boden lassen (Kickstand).', harder:'Schwerere Glocke, Pause unten.',
+    q:'kettlebell single leg deadlift technique'},
+  kb_row:{n:'Einarmiges Rudern', en:'Single-Arm Kettlebell Row', cat:'kb', type:'str', side:true, kg:true,
+    mus:'Latissimus, oberer Rücken, hintere Schulter, Bizeps',
+    steps:['Freie Hand auf einen Stuhl oder eine Bank stützen, Rücken gerade und fast waagerecht.',
+      'Die Kettlebell hängt unter der Schulter.',
+      'Den Ellbogen nah am Körper Richtung Hüfte ziehen, das Schulterblatt geht nach hinten unten.',
+      'Oben eine Sekunde halten, dann kontrolliert ablassen.'],
+    err:['Der Oberkörper dreht sich auf.','Die Schulter zieht Richtung Ohr.','Mit Schwung arbeiten.'],
+    tip:'Denke daran, den Ellbogen in die Hosentasche zu ziehen, nicht die Hand. Die beste Zugübung, wenn noch keine Klimmzugstange da ist.',
+    easier:'Leichtere Glocke, Knie auf der Bank.', harder:'Schwerer, 3 Sekunden ablassen.',
+    q:'single arm kettlebell row form'},
+  kb_press:{n:'Schulterdrücken', en:'Kettlebell Overhead Press', cat:'kb', type:'str', side:true, kg:true, dose:['6–8','6–10','5–8'],
+    mus:'Schultern, Trizeps, oberer Rücken, Rumpf',
+    steps:['Kettlebell in die Rack-Position bringen: Die Glocke liegt außen am Unterarm, das Handgelenk ist gerade, der Ellbogen am Körper.',
+      'Gesäß und Bauch fest anspannen, als würdest du gleich einen Schlag abfangen.',
+      'Senkrecht nach oben drücken, der Bizeps endet neben dem Ohr.',
+      'Kontrolliert zurück in die Rack-Position.'],
+    err:['Hohlkreuz oder nach hinten lehnen.','Abgeknicktes Handgelenk.','Der Ellbogen zeigt weit zur Seite.'],
+    tip:'Die Glocke zu Beginn mit einem Clean oder mit beiden Händen in die Rack-Position holen. Mit der freien Hand eine Faust machen, das stabilisiert.',
+    easier:'Halbkniend drücken oder leichtere Glocke.', harder:'Schwerer, Pause oben, Bottoms-up-Haltung.',
+    q:'kettlebell overhead press technique'},
+  kb_floor_press:{n:'Floor Press', en:'Kettlebell Floor Press', cat:'kb', type:'str', side:true, kg:true, dose:['8–10','10–12','8–10'],
+    mus:'Brust, Trizeps, vordere Schulter',
+    steps:['In Rückenlage, Knie angewinkelt. Die Kettlebell mit beiden Händen zur Seite rollen und in Position bringen.',
+      'Der Oberarm liegt etwa 45° zum Körper auf dem Boden, der Unterarm steht senkrecht.',
+      'Die Glocke senkrecht nach oben drücken.',
+      'Kontrolliert ablassen, bis der Oberarm den Boden berührt. Kurz absetzen, nicht aufschlagen.'],
+    err:['Abgeknicktes Handgelenk.','Den Ellbogen auf den Boden knallen lassen.','Den Ellbogen 90° abspreizen.'],
+    tip:'Ein schulterfreundlicher Ersatz fürs Bankdrücken aus dem Studio. Zum Beenden die Glocke mit beiden Händen zur Seite ablegen.',
+    easier:'Leichtere Glocke.', harder:'Schwerer, Pause unten.',
+    q:'kettlebell floor press technique'},
+  kb_clean:{n:'Kettlebell Clean', en:'Kettlebell Clean', cat:'kb', type:'str', side:true, kg:true, dose:['6–8','8','8–10'],
+    mus:'Hüfte, Gesäß, oberer Rücken, Griff',
+    steps:['Start wie beim einarmigen Swing: hiken.',
+      'Hüfte explosiv strecken, der Ellbogen bleibt nah am Körper.',
+      'Die Glocke eng am Körper nach oben führen, wie beim Hochziehen eines Reißverschlusses.',
+      'Die Hand um die Glocke herum „durchschieben“, sodass die Glocke weich auf dem Unterarm landet (Rack-Position).'],
+    err:['Die Glocke knallt auf den Unterarm, weil sie in einem zu weiten Bogen fliegt.','Mit dem Arm reißen statt aus der Hüfte.','Die Rack-Position mit abgeknicktem Handgelenk.'],
+    tip:'Wenn es am Unterarm schmerzt, war der Bogen zu weit. Mit langen Ärmeln üben. Aus der Rack-Position wieder nach hinten zwischen die Beine fallen lassen.',
+    easier:'Dead Clean: jede Wiederholung vom Boden starten.', harder:'Clean + Press kombinieren.',
+    q:'kettlebell clean technique tutorial'},
+  kb_snatch:{n:'Kettlebell Snatch', en:'Kettlebell Snatch', cat:'kb', type:'bal', side:true, kg:true, dose:['5','6–8','8–10'],
+    mus:'Ganzer Körper: Hüfte, Gesäß, Schultern, Griff, Ausdauer',
+    steps:['Start wie beim einarmigen Swing.',
+      'Kraftvoller Hüftstoß, die Glocke nah am Körper nach oben führen, der Ellbogen geht hoch.',
+      'Über Kopf die Hand nach oben „durchstoßen“, sodass die Glocke weich auf dem Unterarm landet. Arm gestreckt, Bizeps am Ohr.',
+      'Abwärts: Glocke über den Kopf nach vorn fallen lassen, die Hüfte erst spät beugen und hiken.'],
+    err:['Den Arm gestreckt nach oben schwingen. Dann schlägt die Glocke auf den Unterarm.','Hohlkreuz über Kopf.','Zu früh zu schwer.'],
+    tip:'Die Königsübung mit der Kettlebell. Erst ab Phase 3, wenn Swing und Clean sicher sitzen. Lieber leichter und sauber.',
+    easier:'High Pull (Glocke nur bis Brusthöhe ziehen) oder Clean + Press.', harder:'Mehr Wiederholungen in fester Zeit.',
+    q:'kettlebell snatch technique tutorial'},
+  kb_tgu:{n:'Turkish Get-up', en:'Turkish Get-up', cat:'kb', type:'tgu', side:true, kg:true, dose:['1','2','2–3'],
+    mus:'Schultern, Rumpf, Hüfte, Koordination',
+    steps:['Rückenlage, die Kettlebell im gestreckten Arm senkrecht über der Schulter. Das Bein auf der Glockenseite ist angewinkelt.',
+      'Auf den freien Ellbogen rollen, dann auf die Hand hochdrücken. Der Blick bleibt immer bei der Glocke.',
+      'Die Hüfte anheben (Brücke) und das gestreckte Bein unter dem Körper nach hinten fädeln: Halbkniestand.',
+      'Den Oberkörper aufrichten und wie aus einem Ausfallschritt aufstehen.',
+      'Exakt in umgekehrter Reihenfolge zurück auf den Boden.'],
+    err:['Der Arm mit der Glocke steht nicht senkrecht.','Der Blick geht weg von der Glocke.','Hastig arbeiten.'],
+    tip:'Erst ohne Gewicht üben oder mit einem Schuh auf der Faust: Wenn er wackelt, war es zu schnell. Langsam, Schritt für Schritt.',
+    easier:'Nur bis auf den Ellbogen oder bis zur Hand (halber Get-up).', harder:'Schwerere Glocke.',
+    q:'turkish get up step by step tutorial'},
+  kb_halo:{n:'Halo', en:'Kettlebell Halo', cat:'warm', type:'warm', kg:true,
+    mus:'Schulterbeweglichkeit, oberer Rücken, Rumpf',
+    steps:['Die Kettlebell kopfüber an den Hörnern vor der Brust halten.','Eng um den Kopf kreisen: an der Schläfe vorbei, hinter dem Kopf, an der anderen Seite zurück.','Rumpf fest, kein Hohlkreuz. Richtung wechseln.'],
+    err:['Hohlkreuz beim Kreisen hinter dem Kopf.','Zu schwere Glocke.'],
+    tip:'Leichte Glocke (8–12 kg). Ideal zum Aufwärmen der Schultern.', easier:'Kleinere Kreise.', harder:'Langsamer.',
+    q:'kettlebell halo exercise'},
+  kb_suitcase_carry:{n:'Suitcase Carry', en:'Suitcase Carry', cat:'kb', type:'carry', side:true, kg:true,
+    mus:'Seitliche Bauchmuskeln, Griff, Schultern, Haltung',
+    steps:['Die Kettlebell einseitig wie einen Koffer tragen.','Aufrecht stehen, nicht zur Glocke hin neigen. Beide Schultern bleiben gleich hoch.','Ruhig gehen, durch die Wohnung oder auf der Stelle. Dann Seite wechseln.'],
+    err:['Zur Seite kippen.','Die Schulter auf der Glockenseite hochziehen.'],
+    tip:'Wirkt unscheinbar, ist aber eine der besten Rumpfübungen überhaupt. Gleichmäßig atmen.',
+    easier:'Leichtere Glocke, kürzere Zeit.', harder:'Schwerer, Glocke in Rack-Position oder über Kopf.',
+    q:'suitcase carry kettlebell form'},
+  glute_bridge:{n:'Glute Bridge', en:'Glute Bridge', cat:'bw', type:'str',
+    mus:'Gesäß, Beinbeuger, Rumpf',
+    steps:['Rückenlage, die Füße hüftbreit nah am Gesäß aufgestellt.','Bauch leicht anspannen und die Hüfte heben, bis Knie, Hüfte und Schultern eine Linie bilden.','Oben 2 Sekunden das Gesäß fest anspannen, dann langsam ablassen.'],
+    err:['Ins Hohlkreuz drücken statt das Gesäß zu nutzen.','Druck auf den Nacken.'],
+    tip:'Wenn du die Beinbeuger stärker spürst als das Gesäß, die Füße näher an den Po stellen.',
+    easier:'Kleinere Bewegung.', harder:'Einbeinig oder mit Kettlebell auf der Hüfte.',
+    q:'glute bridge proper form'},
+  pushup:{n:'Liegestütz', en:'Push-up', cat:'bw', type:'str',
+    mus:'Brust, Trizeps, vordere Schulter, Rumpf',
+    steps:['Hände etwas breiter als schulterbreit, die Finger zeigen nach vorn.','Der Körper bildet eine gerade Linie, Gesäß und Bauch angespannt.','Die Ellbogen zeigen etwa 45° nach hinten, die Brust sinkt bis knapp über den Boden.','Kraftvoll hochdrücken, oben die Schulterblätter auseinanderschieben.'],
+    err:['Die Hüfte hängt durch.','Die Ellbogen zeigen 90° zur Seite.','Halbe Wiederholungen.','Den Kopf vorschieben.'],
+    tip:'Lieber 6 saubere als 15 halbe Wiederholungen. Wenn die Form bricht, auf erhöhte Liegestütze wechseln.',
+    easier:'Hände erhöht auf Tisch oder Sofa.', harder:'Füße erhöht, langsames Absenken, enge Liegestütze.',
+    q:'perfect push up form tutorial'},
+  incline_pushup:{n:'Liegestütz erhöht', en:'Incline Push-up', cat:'bw', type:'str',
+    mus:'Brust, Trizeps, Schulter, Rumpf',
+    steps:['Hände auf eine stabile Erhöhung: Tisch, Sofa-Lehne, Fensterbank.','Den Körper gerade wie ein Brett halten.','Die Brust zur Kante absenken, die Ellbogen zeigen schräg nach hinten.','Hochdrücken.'],
+    err:['Die Hüfte knickt ein.','Die Erhöhung rutscht. Vorher die Stabilität prüfen!'],
+    tip:'Je höher die Hände, desto leichter. Ideal zum Wiedereinstieg und um die Technik zu lernen.',
+    easier:'Höhere Erhöhung oder an der Wand.', harder:'Niedrigere Erhöhung bis zum Boden.',
+    q:'incline push up form'},
+  pike_pushup:{n:'Pike Push-up', en:'Pike Push-up', cat:'bw', type:'str',
+    mus:'Schultern, Trizeps, oberer Brustmuskel',
+    steps:['Aus dem Liegestütz die Hüfte hochschieben, der Körper bildet ein umgedrehtes V.','Hände schulterbreit, die Füße gehen näher zu den Händen.','Den Kopf vor den Händen Richtung Boden senken, sodass Kopf und Hände ein Dreieck bilden.','Zurück nach oben drücken.'],
+    err:['Die Hüfte sinkt ab, dadurch wird es eine normale Liegestütze.','Die Ellbogen gehen weit zur Seite.'],
+    tip:'Die Calisthenics-Version des Schulterdrückens und der Weg Richtung Handstand-Liegestütz.',
+    easier:'Kleinere Bewegung.', harder:'Füße auf einem Stuhl.',
+    q:'pike push up tutorial'},
+  bench_dips:{n:'Dips am Stuhl', en:'Bench Dips', cat:'bw', type:'str',
+    mus:'Trizeps, Brust, vordere Schulter',
+    steps:['Hände an die Kante eines stabilen Stuhls oder Sofas, die Finger zeigen nach vorn.','Das Gesäß knapp vor der Kante, die Füße vor dir aufgestellt.','Die Ellbogen nach hinten beugen, bis etwa 90° erreicht sind.','Hochdrücken, ohne die Schultern hochzuziehen.'],
+    err:['Zu tief gehen (Schulterschmerz).','Die Ellbogen nach außen.','Die Schultern ziehen zu den Ohren.'],
+    tip:'Den Stuhl an eine Wand stellen, damit er nicht wegrutscht. Bei Schulterbeschwerden lieber enge Liegestütze machen.',
+    easier:'Knie stärker beugen, Füße näher.', harder:'Beine strecken oder Füße erhöht.',
+    q:'bench dips proper form'},
+  pullup:{n:'Klimmzug', en:'Pull-up', cat:'bw', type:'str', bar:true, alt:'australian_row', dose:['3–5','4–6','5–8'],
+    mus:'Latissimus, oberer Rücken, Bizeps, Griff',
+    steps:['Schulterbreit im Obergriff an der Stange hängen.','Zuerst die Schultern nach unten ziehen (Schulterblätter aktivieren).','Die Brust zur Stange ziehen, die Ellbogen zielen Richtung Hüfte.','Das Kinn über die Stange, dann kontrolliert ganz ablassen.'],
+    err:['Schwung oder Kippen.','Halbe Bewegung (nicht ganz ablassen).','Das Kinn nach vorn recken.'],
+    tip:'Wenn noch kein Klimmzug geht: Negativ-Klimmzüge und Australian Rows machen. Ein Widerstandsband als Hilfe ist auch gut.',
+    easier:'Negativ-Klimmzug oder Klimmzug mit Band.', harder:'Langsam ablassen, später mit Rucksack.',
+    q:'pull up proper form tutorial'},
+  chinup:{n:'Chin-up', en:'Chin-up (Untergriff)', cat:'bw', type:'str', bar:true, alt:'australian_row', dose:['3–5','4–6','5–8'],
+    mus:'Latissimus, Bizeps, oberer Rücken',
+    steps:['Schulterbreit im Untergriff hängen, die Handflächen zeigen zu dir.','Schultern nach unten ziehen.','Die Brust zur Stange ziehen, bis das Kinn darüber ist.','Kontrolliert ganz ablassen.'],
+    err:['Schwung.','Nicht ganz ablassen.'],
+    tip:'Meist etwas leichter als der Klimmzug im Obergriff, weil der Bizeps stärker mithilft.',
+    easier:'Negativ-Variante.', harder:'Pause oben (2 Sekunden).',
+    q:'chin up form tutorial'},
+  negative_pullup:{n:'Negativ-Klimmzug', en:'Negative Pull-up', cat:'bw', type:'str', bar:true, alt:'kb_row', dose:['3–5 (je 5 s)','4–6 (je 5 s)','5 (je 6 s)'],
+    mus:'Latissimus, oberer Rücken, Bizeps, Griff',
+    steps:['Mit einem Stuhl oder Sprung in die obere Position: Kinn über der Stange.','3–5 Sekunden lang langsam ablassen, bis die Arme gestreckt sind.','Wieder auf den Stuhl steigen und wiederholen.'],
+    err:['Am Ende fallen lassen.','Die Schultern ziehen zu den Ohren.'],
+    tip:'Der schnellste Weg zum ersten Klimmzug. Zähle beim Ablassen laut mit.',
+    easier:'Kürzer ablassen (3 s).', harder:'Länger ablassen (8 s) oder mit Pausen auf halber Höhe.',
+    q:'negative pull ups for beginners'},
+  australian_row:{n:'Australian Row', en:'Inverted Row', cat:'bw', type:'str',
+    mus:'Oberer Rücken, Latissimus, Bizeps, hintere Schulter',
+    steps:['Unter einen stabilen Tisch oder eine tief hängende Stange legen, die Hände schulterbreit an der Kante.','Der Körper ist gerade wie beim Liegestütz, die Fersen bleiben am Boden.','Die Brust zur Kante ziehen, die Schulterblätter zusammen.','Langsam ablassen.'],
+    err:['Die Hüfte hängt durch.','Das Kinn reckt sich zur Kante statt der Brust.'],
+    tip:'Sicherheit zuerst: Den Tisch vorher mit vollem Gewicht testen! Mit gebeugten Knien wird es leichter.',
+    easier:'Knie beugen, Füße näher.', harder:'Beine gestreckt, Füße erhöht.',
+    q:'inverted row australian pull up form'},
+  scap_pull:{n:'Schulterblatt-Klimmzug', en:'Scapula Pull-up', cat:'warm', type:'warm', bar:true,
+    mus:'Untere Trapezmuskeln, Schulterstabilität',
+    steps:['Mit gestreckten Armen an der Stange hängen.','Nur durch Bewegen der Schulterblätter den Körper wenige Zentimeter anheben.','Die Arme bleiben gestreckt. 1 Sekunde halten, ablassen.'],
+    err:['Die Arme beugen.','Mit Schwung arbeiten.'],
+    tip:'Bereitet die Schultern auf Klimmzüge vor und macht den Griff stark.', easier:'Füße leicht am Boden lassen.', harder:'Längere Pause oben.',
+    q:'scapular pull ups tutorial'},
+  hanging_knee_raise:{n:'Hängendes Knieheben', en:'Hanging Knee Raise', cat:'bw', type:'str', bar:true, alt:'hollow_hold',
+    mus:'Untere Bauchmuskeln, Hüftbeuger, Griff',
+    steps:['An der Stange hängen, die Schultern aktiv.','Die Knie kontrolliert Richtung Brust ziehen, das Becken leicht einrollen.','Langsam ablassen, ohne zu schaukeln.'],
+    err:['Schwung nutzen.','Nur die Beine heben, ohne das Becken einzurollen.'],
+    tip:'Wenn du schaukelst, unten kurz innehalten.', easier:'Kleinere Bewegung.', harder:'Gestreckte Beine.',
+    q:'hanging knee raise form'},
+  plank:{n:'Unterarmstütz', en:'Plank', cat:'bw', type:'hold',
+    mus:'Gerade und tiefe Bauchmuskeln, Schultern, Gesäß',
+    steps:['Die Unterarme unter den Schultern, die Füße hüftbreit.','Der Körper bildet eine Linie, Gesäß fest, Bauchnabel Richtung Wirbelsäule.','Blick zum Boden, ruhig weiteratmen.'],
+    err:['Die Hüfte ist zu hoch oder hängt durch.','Die Luft anhalten.'],
+    tip:'Lieber 20 Sekunden mit voller Spannung (Ellbogen Richtung Füße ziehen) als 2 Minuten durchhängen.',
+    easier:'Auf den Knien.', harder:'Ein Bein anheben, länger halten.',
+    q:'plank proper form'},
+  hollow_hold:{n:'Hollow Body Hold', en:'Hollow Body Hold', cat:'bw', type:'hold',
+    mus:'Bauchmuskeln, Hüftbeuger. Die Basis-Spannung im Calisthenics',
+    steps:['Rückenlage, den unteren Rücken fest in den Boden drücken.','Schultern und Beine leicht anheben, die Arme gestreckt über den Kopf.','Diese „Bananenform“ halten. Der Rücken darf nicht abheben.'],
+    err:['Hohlkreuz: Der Rücken hebt ab. Dann die Übung leichter machen.','Kinn auf die Brust drücken.'],
+    tip:'Die Animation zeigt erst die leichte Variante mit angezogenen Knien, dann die volle. Nimm die Stufe, bei der der Rücken am Boden bleibt.',
+    easier:'Knie anziehen (Tuck), Arme neben dem Körper.', harder:'Beine und Arme gestreckt und tiefer.',
+    q:'hollow body hold tutorial beginner'},
+  dead_bug:{n:'Dead Bug', en:'Dead Bug', cat:'bw', type:'str', side:true,
+    mus:'Tiefe Bauchmuskeln, Koordination',
+    steps:['Rückenlage, die Arme senkrecht nach oben, die Knie im 90°-Winkel über der Hüfte.','Den unteren Rücken auf den Boden drücken.','Gleichzeitig einen Arm und das gegenüberliegende Bein langsam strecken.','Zurück und Seite wechseln.'],
+    err:['Der Rücken hebt ab.','Zu schnell arbeiten.'],
+    tip:'Beim Strecken lang ausatmen. Das hilft, den Rücken unten zu halten.', easier:'Nur die Beine bewegen.', harder:'Kettlebell in den Händen halten.',
+    q:'dead bug exercise form'},
+  mountain_climber:{n:'Bergsteiger', en:'Mountain Climber', cat:'bw', type:'time',
+    mus:'Rumpf, Hüftbeuger, Kreislauf',
+    steps:['Liegestütz-Position, die Hände unter den Schultern.','Die Knie abwechselnd zügig Richtung Brust ziehen.','Die Hüfte bleibt tief und ruhig.'],
+    err:['Die Hüfte springt hoch.','Die Schultern wandern hinter die Hände.'],
+    tip:'Erst langsam und kontrolliert, dann Tempo steigern.', easier:'Langsam, Fuß absetzen.', harder:'Schneller, Knie zum gegenüberliegenden Ellbogen.',
+    q:'mountain climbers proper form'},
+  bird_dog:{n:'Bird Dog', en:'Bird Dog', cat:'warm', type:'warm', side:true,
+    mus:'Rückenstrecker, Gesäß, Rumpfstabilität',
+    steps:['Vierfüßlerstand: Hände unter den Schultern, Knie unter der Hüfte.','Gleichzeitig einen Arm nach vorn und das gegenüberliegende Bein nach hinten strecken.','Der Rücken bleibt flach wie ein Tisch. 2 Sekunden halten, wechseln.'],
+    err:['Die Hüfte kippt zur Seite.','Das Bein zu hoch heben (Hohlkreuz).'],
+    tip:'Stell dir ein Glas Wasser auf deinem Rücken vor.', easier:'Nur Arm oder nur Bein.', harder:'Länger halten.',
+    q:'bird dog exercise form'},
+  hip_hinge:{n:'Hüftbeuge-Drill', en:'Hip Hinge / Good Morning', cat:'warm', type:'warm',
+    mus:'Beinbeuger-Dehnung, Bewegungsmuster für Swing und Kreuzheben',
+    steps:['Hüftbreit stehen, die Hände vor der Brust verschränkt.','Die Hüfte nach hinten schieben, der Rücken bleibt gerade, die Knie leicht gebeugt.','Wenn die Oberschenkelrückseite zieht, über das Gesäß wieder aufrichten.'],
+    err:['Den Rücken runden.','In die Knie gehen statt in die Hüfte.'],
+    tip:'Eine Hand an der Wand hinter dir: Mit dem Po die Wand antippen.', easier:'Kleinere Bewegung.', harder:'Langsamer.',
+    q:'hip hinge drill tutorial'},
+  arm_circles:{n:'Armkreisen', en:'Arm Circles', cat:'warm', type:'warm',
+    mus:'Schultern, Brustwirbelsäule',
+    steps:['Locker stehen.','Die Arme in großen Kreisen nach vorn und hinten kreisen.','Die Kreise langsam größer werden lassen.'],
+    err:['Hochgezogene Schultern.'], tip:'Ruhig und weit, nicht hektisch.', easier:'Kleine Kreise.', harder:'Größere Kreise.',
+    q:'arm circles warm up'}
+};
+
+/* ================================================================
+   3) Programm: 12 Wochen, 3 Ganzkörper-Einheiten pro Woche
+   ================================================================ */
+const PHASES = [
+  {n:'Fundament', from:1, to:4, rest:75, rpe:'6–7',
+    desc:'Technik lernen, Sehnen und Gelenke wieder an Belastung gewöhnen. Jeder Satz endet mit 2–3 Wiederholungen Reserve.'},
+  {n:'Aufbau', from:5, to:8, rest:75, rpe:'7–8',
+    desc:'Mehr Volumen, Swing und Clean werden zum Motor, erste Klimmzug-Negative. Kurze Pausen, Kondition dazu.'},
+  {n:'Kraft & Power', from:9, to:12, rest:105, rpe:'8',
+    desc:'Schwerere Glocke, anspruchsvollere Varianten (Snatch, Pistol zur Box, Klimmzug), längere Pausen.'}
+];
+const SETS = [2,3,3,3, 3,4,4,2, 4,4,4,2];
+const DELOAD = {8:true, 12:true};
+const WEEKNOTE = {
+  1:'Eingewöhnung: nur 2 Sätze. Gewichte bewusst leicht wählen. Nach einem Jahr Pause brauchen Sehnen länger als Muskeln.',
+  2:'3 Sätze. Technik vor Gewicht. Jeder Satz endet mit 2–3 Wiederholungen Reserve.',
+  3:'Schaffst du in allen Sätzen das obere Ende der Wiederholungen sauber? Dann beim nächsten Mal schwerer oder die schwierigere Variante.',
+  4:'Technikwoche: gleiche Belastung, aber jede Wiederholung 3 Sekunden langsam absenken.',
+  5:'Neue Phase: neue Übungen, der Swing wird zur Hauptübung. Erste Intervalle (EMOM) zum Abschluss.',
+  6:'4 Sätze. Pausen eher kurz halten (60–75 s).',
+  7:'Die härteste Woche der Phase. Sauber bleiben, nicht bis zum Muskelversagen.',
+  8:'Erholungswoche (Deload): nur 2 Sätze mit etwa 60 % Anstrengung. Erholung gehört zum Plan.',
+  9:'Kraft & Power: wo möglich die schwerere Glocke, längere Pausen (90–120 s).',
+  10:'Snatch und Pistol-Progression stehen im Mittelpunkt. Qualität vor Menge.',
+  11:'Letzte harte Woche. Bestleistungen sind erlaubt, Technik bleibt Pflicht.',
+  12:'Deload und Abschlusstest. Am Ende der Woche die Testwerte eintragen und mit Woche 1 vergleichen.'
+};
+const SLOTS = [['hinge','Hüfte · Kettlebell'],['knee','Beine'],['push','Drücken'],['pull','Ziehen'],['core','Rumpf']];
+const POOLS = [
+  {hinge:['kb_deadlift','kb_swing','kb_sl_rdl'], knee:['kb_goblet_squat','split_squat','kb_reverse_lunge'],
+   push:['incline_pushup','kb_floor_press','pushup'], pull:['australian_row','kb_row','negative_pullup'], core:['plank','dead_bug','hollow_hold']},
+  {hinge:['kb_swing','kb_clean','kb_sl_rdl','kb_swing_1h'], knee:['kb_goblet_squat','bulgarian','kb_reverse_lunge'],
+   push:['pushup','kb_press','pike_pushup','bench_dips'], pull:['negative_pullup','kb_row','chinup','australian_row'],
+   core:['hollow_hold','hanging_knee_raise','kb_suitcase_carry','mountain_climber']},
+  {hinge:['kb_swing_1h','kb_snatch','kb_clean','kb_sl_rdl'], knee:['bulgarian','box_pistol','kb_goblet_squat'],
+   push:['kb_press','pike_pushup','pushup','bench_dips'], pull:['pullup','kb_row','chinup'],
+   core:['kb_tgu','hanging_knee_raise','hollow_hold']}
+];
+const DOSE = {str:['8–10','8–12','6–8'], bal:['10','15','12–15'], hold:['20–30 s','30–40 s','40–60 s'],
+  carry:['30 s','40 s','45 s'], time:['30 s','40 s','45 s'], tgu:['1','2','2–3']};
+const FIN = [
+  [{t:'Suitcase Carry', d:'2 Runden à 30 s pro Seite. Locker, aber aufrecht.', ids:['kb_suitcase_carry']},
+   {t:'Swing-Technikblock', d:'5 × 8 Swings, dazwischen 30–45 s locker gehen. Jede Wiederholung bewusst kraftvoll aus der Hüfte.', ids:['kb_swing']},
+   {t:'Rumpf-Duo', d:'2 Runden: 30 s Unterarmstütz + 6 Dead Bugs pro Seite.', ids:['plank','dead_bug']}],
+  [{t:'EMOM 8 Minuten', d:'Zu Beginn jeder Minute 10 Swings + 5 Liegestütze, den Rest der Minute Pause. 8 Runden.', ids:['kb_swing','pushup']},
+   {t:'Carry & Climb', d:'3 Runden: 40 s Suitcase Carry pro Seite + 30 s Bergsteiger. 60 s Pause.', ids:['kb_suitcase_carry','mountain_climber']},
+   {t:'Swing-Leiter', d:'10 – 15 – 20 – 15 – 10 Swings. Pause so lange wie der letzte Satz gedauert hat.', ids:['kb_swing']}],
+  [{t:'Kettlebell-Komplex', d:'3 Runden pro Seite, ohne die Glocke abzusetzen: 5 Clean + 5 Schulterdrücken + 5 Rückwärts-Ausfallschritte. 90 s Pause.', ids:['kb_clean','kb_press','kb_reverse_lunge']},
+   {t:'Snatch-Intervalle', d:'10 Runden: 30 s Arbeit (5–7 Snatches, Seite jede Runde wechseln) / 30 s Pause.', ids:['kb_snatch']},
+   {t:'AMRAP 10 Minuten', d:'So viele Runden wie möglich: 4 Klimmzüge (oder 8 Rows), 8 Liegestütze, 12 Swings.', ids:['pullup','pushup','kb_swing']}]
+];
+const TEST = {test:true, t:'Test', d:'Ohne Hast, mit voller Pause dazwischen: max. saubere Liegestütze · max. Klimmzüge (oder Australian Rows) · Unterarmstütz so lange wie möglich · Swings in 5 Minuten. Werte unter „Fortschritt“ eintragen.', ids:['pushup','pullup','plank','kb_swing']};
+
+const WARM = [['arm_circles','30 s'],['bird_dog','5 pro Seite'],['hip_hinge','10'],['air_squat','10'],['kb_halo','5 pro Richtung'],['glute_bridge','10'],['scap_pull','8']];
+const COOL = [['Hüftbeuger kniend','30 s pro Seite'],['Brustdehnung im Türrahmen','30 s pro Seite'],['Taube (Gesäß)','30 s pro Seite'],['Kindhaltung','45 s, tief in den Bauch atmen']];
+const DAYS = ['A','B','C'];
+const DAYHINT = ['Mo','Mi','Fr'];
+
+/* ================================================================
+   4) Zustand (lokal im Browser gespeichert)
+   ================================================================ */
+const KEY = 'heimkraft-v1';
+let S = {done:{}, logs:{}, bar:true, kgs:'', tests:{}, cur:null};
+try { const raw = localStorage.getItem(KEY); if (raw) S = Object.assign(S, JSON.parse(raw)); } catch(e){}
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){} }
+
+const wk = (w,d) => w + '-' + d;
+const phaseOf = w => PHASES.findIndex(p => w >= p.from && w <= p.to);
+function resolve(id){ const e = EX[id]; return (!S.bar && e.bar && e.alt) ? e.alt : id; }
+
+function dayPlan(w, d){
+  const pi = phaseOf(w), k = w - PHASES[pi].from;
+  const pools = POOLS[pi];
+  const ex = SLOTS.map(([slot, label]) => {
+    const pool = pools[slot];
+    return {slot: label, id: resolve(pool[(k + d) % pool.length])};
+  });
+  let fin = null;
+  if (w === 1 && d === 0) fin = Object.assign({}, TEST, {t:'Starttest (optional)'});
+  else if (w === 12 && d === 2) fin = Object.assign({}, TEST, {t:'Abschlusstest'});
+  else if (w === 1 || DELOAD[w]) fin = null;
+  else fin = FIN[pi][(k + d) % 3];
+  return {w, d, pi, sets: SETS[w-1], ex, fin, rest: DELOAD[w] ? 60 : PHASES[pi].rest};
+}
+function doseOf(id, pi){
+  const e = EX[id];
+  const v = e.dose ? e.dose[pi] : DOSE[e.type][pi];
+  return v + (e.side ? ' / Seite' : '') + (e.type === 'str' || e.type === 'bal' || e.type === 'tgu' ? ' Wdh.' : '');
+}
+function nextWorkout(){
+  for (let w = 1; w <= 12; w++) for (let d = 0; d < 3; d++) if (!S.done[wk(w,d)]) return {w, d};
+  return {w:12, d:2};
+}
+if (!S.cur) S.cur = nextWorkout();
+
+function lastTime(id, w, d){
+  const order = w*3 + d;
+  let best = null;
+  for (const k in S.logs){
+    const [kw, kd, kid] = k.split('-');
+    if (kid !== id) continue;
+    const o = (+kw)*3 + (+kd);
+    if (o >= order) continue;
+    const sets = S.logs[k].filter(s => s.ok);
+    if (!sets.length) continue;
+    if (!best || o > best.o) best = {o, w:+kw, d:+kd, sets};
+  }
+  return best;
+}
+
+/* ================================================================
+   5) Darstellung
+   ================================================================ */
+const $ = s => document.querySelector(s);
+const h = (tag, attrs={}, ...kids) => {
+  const e = document.createElement(tag);
+  for (const k in attrs){
+    const v = attrs[k];
+    if (k === 'class') e.className = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else if (k === 'html') e.innerHTML = v;
+    else if (v !== false && v != null) e.setAttribute(k, v === true ? '' : v);
+  }
+  for (const c of kids.flat()) if (c != null && c !== false) e.append(c.nodeType ? c : document.createTextNode(c));
+  return e;
+};
+const ICON = {
+  left:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M15 5l-7 7 7 7"/></svg>',
+  right:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  close:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  chev:'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>',
+  play:'<svg viewBox="0 0 48 48"><rect x="2" y="8" width="44" height="32" rx="9" fill="#e62117"/><path d="M20 17v14l12-7z" fill="#fff"/></svg>'
+};
+const iconBtn = (svg, label, on, disabled) => { const b = h('button', {class:'iconbtn', type:'button', 'aria-label':label, onclick:on, disabled}); b.innerHTML = svg; return b; };
+const catChip = id => { const c = EX[id].cat; return h('span', {class:'chip ' + (c === 'kb' ? 'kb' : c === 'warm' ? 'plain' : '')}, c === 'kb' ? 'Kettlebell' : c === 'warm' ? 'Aufwärmen' : 'Eigengewicht'); };
+
+function topChip(){
+  const n = nextWorkout();
+  const all = Object.keys(S.done).length;
+  $('#topChip').textContent = all >= 36 ? 'Programm geschafft' : `Woche ${n.w} · ${DAYS[n.d]}`;
+}
+
+/* ---------- Training ---------- */
+function renderTraining(){
+  const v = $('#v-training'); v.replaceChildren();
+  const {w, d} = S.cur;
+  const P = dayPlan(w, d), ph = PHASES[P.pi];
+  const order = w*3 + d;
+  const go = delta => { let o = order + delta; if (o < 3 || o > 38) return; S.cur = {w: Math.floor(o/3), d: o%3}; save(); renderTraining(); scrollTo(0,0); };
+  const doneDate = S.done[wk(w,d)];
+
+  v.append(h('div', {class:'card pad hero'},
+    h('div', {class:'eyebrow'}, `Phase ${P.pi+1} · ${ph.n}${DELOAD[w] ? ' · Erholungswoche' : ''}`),
+    h('div', {class:'hero-row'},
+      h('h1', {}, `Woche ${w} · Training ${DAYS[d]}`),
+      h('div', {class:'nav'}, iconBtn(ICON.left, 'Vorheriges Training', () => go(-1), order <= 3), iconBtn(ICON.right, 'Nächstes Training', () => go(1), order >= 38))),
+    h('div', {class:'facts'},
+      h('div', {class:'fact'}, h('b', {class:'num'}, P.sets), h('span', {}, 'Sätze pro Übung')),
+      h('div', {class:'fact'}, h('b', {class:'num'}, P.rest + ' s'), h('span', {}, 'Pause')),
+      h('div', {class:'fact'}, h('b', {class:'num'}, DELOAD[w] ? '5–6' : ph.rpe), h('span', {}, 'Anstrengung (RPE)'))),
+    h('div', {class:'note'}, WEEKNOTE[w])
+  ));
+  if (doneDate) v.append(h('div', {class:'done-banner', html: ICON.check.replace('<svg', '<svg width="20" height="20"') + ' Erledigt am ' + new Date(doneDate).toLocaleDateString('de-DE')}));
+
+  // Aufwärmen
+  const warm = WARM.filter(([id]) => S.bar || !EX[id].bar);
+  v.append(h('div', {class:'sec-h'}, h('h2', {}, 'Aufwärmen'), h('span', {class:'muted'}, 'ca. 6 Minuten, eine Runde')));
+  v.append(h('div', {class:'card list'}, warm.map(([id, dose]) =>
+    h('button', {class:'li', type:'button', onclick:() => openEx(id)}, makeFigure(id), h('div', {class:'t'}, h('b', {}, EX[id].n), h('span', {}, dose)), h('span', {class:'go', html:ICON.chev})))));
+
+  // Hauptteil
+  v.append(h('div', {class:'sec-h'}, h('h2', {}, 'Hauptteil'), h('span', {class:'muted'}, 'Übungen der Reihe nach, alle Sätze')));
+  P.ex.forEach(({slot, id}) => v.append(exCard(P, slot, id)));
+
+  // Finisher
+  if (P.fin){
+    v.append(h('div', {class:'sec-h'}, h('h2', {}, P.fin.test ? 'Test' : 'Finisher'), h('span', {class:'muted'}, P.fin.test ? 'Werte unter Fortschritt eintragen' : '5–10 Minuten')));
+    v.append(h('div', {class:'card finisher'}, h('h3', {}, P.fin.t), h('p', {style:'margin:0'}, P.fin.d),
+      h('div', {class:'links'}, P.fin.ids.map(resolve).map(id => h('button', {class:'linkchip', type:'button', onclick:() => openEx(id)}, EX[id].n)))));
+  }
+
+  // Cool-down
+  v.append(h('div', {class:'sec-h'}, h('h2', {}, 'Cool-down'), h('span', {class:'muted'}, 'Dehnen, ca. 4 Minuten')));
+  v.append(h('div', {class:'card list'}, COOL.map(([n, dz]) => h('div', {class:'li'}, h('div', {class:'t'}, h('b', {}, n), h('span', {}, dz))))));
+
+  v.append(doneDate
+    ? h('button', {class:'btn ghost block', type:'button', onclick:() => { delete S.done[wk(w,d)]; save(); renderAll(); }}, 'Als nicht erledigt markieren')
+    : h('button', {class:'btn good block', type:'button', onclick:() => { S.done[wk(w,d)] = new Date().toISOString(); S.cur = nextWorkout(); save(); stopTimer(); renderAll(); scrollTo(0,0); }, html: ICON.check.replace('<svg', '<svg width="20" height="20"') + ' Training abschließen'}));
+  v.append(h('p', {class:'small muted', style:'margin:0;text-align:center'}, `Vorschlag: ${DAYHINT.join(' · ')} – mindestens ein Ruhetag zwischen den Einheiten.`));
+}
+
+function exCard(P, slot, id){
+  const e = EX[id], key = `${P.w}-${P.d}-${id}`;
+  const log = S.logs[key] || (S.logs[key] = Array.from({length:P.sets}, () => ({r:'', kg:'', ok:false})));
+  while (log.length < P.sets) log.push({r:'', kg:'', ok:false});
+  const lt = lastTime(id, P.w, P.d);
+  const target = (doseOf(id, P.pi).match(/\d+/) || [''])[0];
+  const unit = e.type === 'hold' || e.type === 'time' || e.type === 'carry' ? 's' : 'Wdh.';
+  const lastKg = lt ? (lt.sets.find(s => s.kg) || {}).kg : '';
+  const card = h('article', {class:'card ex'});
+  card.append(h('button', {class:'ex-head', type:'button', onclick:() => openEx(id), 'aria-label': e.n + ' – Anleitung öffnen'},
+    makeFigure(id),
+    h('div', {class:'t'}, h('span', {class:'slot'}, slot), h('h3', {}, e.n), h('span', {class:'dose num'}, `${P.sets} × ${doseOf(id, P.pi)}`),
+      h('span', {class:'meta'}, 'Antippen für Anleitung & Video')),
+    h('span', {class:'go muted', html:ICON.chev})));
+  if (lt) card.append(h('div', {class:'last num'}, `Letztes Mal (W${lt.w} ${DAYS[lt.d]}): ` + lt.sets.map(s => s.r || '–').join(' · ') + ' ' + unit + (lastKg ? ` · ${lastKg} kg` : '')));
+  const sets = h('div', {class:'sets'});
+  log.slice(0, P.sets).forEach((s, i) => {
+    const row = h('div', {class:'set' + (e.kg ? '' : ' nokg') + (s.ok ? ' done' : '')});
+    const rIn = h('input', {type:'number', inputmode:'numeric', min:0, id:`r-${key}-${i}`, placeholder:target, value:s.r, 'aria-label':`Satz ${i+1} ${unit}`});
+    rIn.addEventListener('change', () => { s.r = rIn.value; save(); });
+    row.append(h('label', {for:`r-${key}-${i}`}, `Satz ${i+1}`), h('div', {class:'field'}, rIn, h('i', {}, unit)));
+    if (e.kg){
+      const kIn = h('input', {type:'number', inputmode:'decimal', min:0, step:2, id:`k-${key}-${i}`, placeholder:lastKg || '', value:s.kg, 'aria-label':`Satz ${i+1} Gewicht`});
+      kIn.addEventListener('change', () => { s.kg = kIn.value; save(); });
+      row.append(h('div', {class:'field'}, kIn, h('i', {}, 'kg')));
+    }
+    const btn = h('button', {class:'check', type:'button', 'aria-pressed': String(!!s.ok), 'aria-label':`Satz ${i+1} erledigt`, html:ICON.check});
+    btn.addEventListener('click', () => {
+      s.ok = !s.ok;
+      if (s.ok && !s.r) { s.r = target; rIn.value = target; }
+      if (s.ok && e.kg && !s.kg && lastKg) { s.kg = lastKg; row.querySelector('input[id^=k-]').value = lastKg; }
+      btn.setAttribute('aria-pressed', String(s.ok)); row.classList.toggle('done', s.ok); save();
+      if (s.ok) startTimer(P.rest, e.n);
+    });
+    row.append(btn);
+    sets.append(row);
+  });
+  card.append(sets);
+  return card;
+}
+
+/* ---------- Pausentimer ---------- */
+let tEnd = 0, tTotal = 0, tInt = null, actx = null, wakeLock = null;
+function beep(){
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    [0, .22, .44].forEach(o => { const os = actx.createOscillator(), g = actx.createGain();
+      os.frequency.value = o === .44 ? 1175 : 880; g.gain.setValueAtTime(.0001, actx.currentTime + o);
+      g.gain.exponentialRampToValueAtTime(.25, actx.currentTime + o + .02); g.gain.exponentialRampToValueAtTime(.0001, actx.currentTime + o + .18);
+      os.connect(g).connect(actx.destination); os.start(actx.currentTime + o); os.stop(actx.currentTime + o + .2); });
+  } catch(e){}
+  try { navigator.vibrate && navigator.vibrate([200, 100, 200]); } catch(e){}
+}
+function startTimer(sec, name){
+  try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume && actx.resume(); } catch(e){}
+  try { if ('wakeLock' in navigator && !wakeLock) navigator.wakeLock.request('screen').then(l => { wakeLock = l; l.addEventListener('release', () => wakeLock = null); }).catch(() => {}); } catch(e){}
+  tTotal = sec; tEnd = Date.now() + sec*1000;
+  $('#timerLbl').textContent = 'Pause nach ' + name;
+  $('#timerBox').classList.remove('end');
+  $('#timer').hidden = false;
+  clearInterval(tInt); tInt = setInterval(tick, 250); tick();
+}
+function tick(){
+  const left = Math.max(0, Math.round((tEnd - Date.now())/1000));
+  $('#timerVal').textContent = Math.floor(left/60) + ':' + String(left%60).padStart(2, '0');
+  $('#timerProg').style.width = (100 * (1 - left / Math.max(1, tTotal))) + '%';
+  if (left <= 0){
+    clearInterval(tInt); tInt = null; beep();
+    $('#timerBox').classList.add('end'); $('#timerLbl').textContent = 'Los geht’s – nächster Satz!';
+    setTimeout(() => { if (!tInt) $('#timer').hidden = true; }, 4000);
+  }
+}
+function stopTimer(){ clearInterval(tInt); tInt = null; $('#timer').hidden = true; }
+$('#tPlus').addEventListener('click', () => { tEnd += 15000; tTotal += 15; if (!tInt){ $('#timerBox').classList.remove('end'); tInt = setInterval(tick, 250); } tick(); });
+$('#tSkip').addEventListener('click', stopTimer);
+
+/* ---------- Plan ---------- */
+const openWeeks = new Set();
+function renderPlan(){
+  const v = $('#v-plan'); v.replaceChildren();
+  const n = nextWorkout();
+  if (!openWeeks.size) openWeeks.add(n.w);
+  v.append(h('div', {class:'card pad prose'},
+    h('h1', {style:'font-size:30px'}, '12 Wochen Ganzkörper'),
+    h('p', {}, '3 Einheiten pro Woche, je ca. 45–55 Minuten. Jede Einheit trainiert alle Bewegungsmuster: Hüfte, Beine, Drücken, Ziehen und Rumpf. Die Übungen wechseln jede Woche, die Muster bleiben gleich. So bleibt es abwechslungsreich und dein Fortschritt messbar.'),
+    h('p', {class:'small muted'}, S.bar ? 'Mit Klimmzugstange. Ohne Stange: unter „Fortschritt“ umschalten, dann werden passende Alternativen eingesetzt.' : 'Ohne Klimmzugstange: Klimmzug-Übungen sind durch Rudern ersetzt.')));
+  PHASES.forEach((ph, pi) => {
+    const sec = h('div', {class:'phase'}, h('div', {class:'phase-h'}, h('span', {class:'eyebrow'}, `Phase ${pi+1} · Woche ${ph.from}–${ph.to}`), h('h2', {}, ph.n), h('span', {class:'small muted'}, ph.desc)));
+    for (let w = ph.from; w <= ph.to; w++){
+      const open = openWeeks.has(w);
+      const card = h('div', {class:'card week'});
+      const head = h('button', {class:'week-h', type:'button', 'aria-expanded':String(open), onclick:() => { open ? openWeeks.delete(w) : openWeeks.add(w); renderPlan(); }},
+        h('b', {}, `Woche ${w}`), h('span', {class:'small muted'}, `${SETS[w-1]} Sätze${DELOAD[w] ? ' · Deload' : ''}`),
+        h('div', {class:'dots'}, [0,1,2].map(d => h('span', {class:'dot' + (S.done[wk(w,d)] ? ' on' : '') + (n.w === w && n.d === d ? ' now' : ''), title:`Training ${DAYS[d]}`}))));
+      card.append(head);
+      if (open){
+        const b = h('div', {class:'week-b'}, h('div', {class:'note'}, WEEKNOTE[w]));
+        [0,1,2].forEach(d => {
+          const P = dayPlan(w, d);
+          b.append(h('div', {class:'day'},
+            h('div', {class:'day-h'}, h('b', {}, `Training ${DAYS[d]}`), S.done[wk(w,d)] ? h('span', {class:'badge chip good'}, 'erledigt') : null,
+              h('button', {class:'open', type:'button', onclick:() => { S.cur = {w, d}; save(); location.hash = 'training'; }}, 'Öffnen →')),
+            h('ol', {}, P.ex.map(x => h('li', {}, `${EX[x.id].n} – ${P.sets} × ${doseOf(x.id, P.pi)}`))),
+            P.fin ? h('span', {class:'small muted'}, `+ ${P.fin.t}`) : null));
+        });
+        card.append(b);
+      }
+      sec.append(card);
+    }
+    v.append(sec);
+  });
+}
+
+/* ---------- Bibliothek ---------- */
+let libFilter = 'all';
+function renderLib(){
+  const v = $('#v-uebungen'); v.replaceChildren();
+  v.append(h('div', {class:'sec-h'}, h('h2', {style:'font-size:28px'}, 'Übungen'), h('span', {class:'muted'}, Object.keys(EX).length + ' mit Animation')));
+  const fl = [['all','Alle'],['kb','Kettlebell'],['bw','Eigengewicht'],['warm','Aufwärmen']];
+  v.append(h('div', {class:'filters', role:'group', 'aria-label':'Filter'}, fl.map(([k, n]) =>
+    h('button', {type:'button', 'aria-pressed':String(libFilter === k), onclick:() => { libFilter = k; renderLib(); }}, n))));
+  const grid = h('div', {class:'grid'});
+  for (const id in EX){
+    const e = EX[id];
+    if (libFilter !== 'all' && e.cat !== libFilter) continue;
+    grid.append(h('button', {class:'tile', type:'button', onclick:() => openEx(id)}, makeFigure(id), h('b', {}, e.n), h('span', {}, e.mus.split(',').slice(0,2).join(','))));
+  }
+  v.append(grid);
+}
+
+/* ---------- Detailansicht ---------- */
+let sheetPrevFocus = null;
+function openEx(id){
+  const e = EX[id], sh = $('#sheet');
+  sheetPrevFocus = document.activeElement;
+  sh.replaceChildren();
+  const fig = makeFigure(id, {autoplay:true});
+  fig._fig.playing = true;
+  const speedBtns = [];
+  const setSpeed = sp => { fig._fig.speed = sp; speedBtns.forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.s === sp))); };
+  const playBtn = h('button', {type:'button', 'aria-pressed':'false'}, 'Pause');
+  playBtn.addEventListener('click', () => { fig._fig.playing = !fig._fig.playing; playBtn.textContent = fig._fig.playing ? 'Pause' : 'Abspielen'; });
+  for (const [s, n] of [[.5,'Zeitlupe'],[1,'Normal']]) speedBtns.push(h('button', {type:'button', 'data-s':s, onclick:() => setSpeed(s)}, n));
+  const wrap = h('div', {class:'wrap'},
+    h('div', {class:'sheet-top'}, h('h2', {id:'sheetTitle'}, e.n), iconBtn(ICON.close, 'Schließen', closeEx)),
+    h('div', {class:'stage'}, fig, h('div', {class:'stage-ctl'}, playBtn, ...speedBtns, h('span', {class:'small muted', style:'margin-left:auto'}, 'Seitenansicht'))),
+    h('div', {class:'tags'}, catChip(id), h('span', {class:'chip plain'}, e.en), e.bar ? h('span', {class:'chip plain'}, 'Klimmzugstange') : null),
+    h('p', {class:'muted', style:'margin:0'}, h('b', {style:'color:var(--ink)'}, 'Muskeln: '), e.mus),
+    h('div', {class:'card pad block'}, h('h3', {}, 'So geht’s'), h('ol', {}, e.steps.map(s => h('li', {}, s)))),
+    h('div', {class:'card pad block'}, h('h3', {}, 'Häufige Fehler'), h('ul', {class:'err'}, e.err.map(s => h('li', {}, s)))),
+    h('div', {class:'card pad block'}, h('h3', {}, 'Trainer-Tipp'), h('p', {}, e.tip)),
+    h('div', {class:'card pad block'}, h('h3', {}, 'Anpassen'), h('ul', {}, h('li', {}, h('b', {}, 'Leichter: '), e.easier), h('li', {}, h('b', {}, 'Schwerer: '), e.harder))),
+    h('a', {class:'card yt', href:yt(e.q), target:'_blank', rel:'noopener'}, h('span', {html:ICON.play}), h('div', {}, h('b', {}, 'Technik-Videos ansehen'), h('span', {}, `YouTube-Suche: „${e.q}“`)))
+  );
+  setSpeed(1);
+  sh.append(wrap);
+  sh.hidden = false; sh.scrollTop = 0;
+  document.body.style.overflow = 'hidden';
+  sh.querySelector('.iconbtn').focus();
+}
+function closeEx(){
+  const sh = $('#sheet'); sh.hidden = true; sh.replaceChildren(); document.body.style.overflow = '';
+  if (sheetPrevFocus && sheetPrevFocus.focus) sheetPrevFocus.focus();
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#sheet').hidden) closeEx(); });
+
+/* ---------- Fortschritt ---------- */
+let confirmReset = false;
+function renderProgress(){
+  const v = $('#v-fortschritt'); v.replaceChildren();
+  const n = nextWorkout();
+  const doneN = Object.keys(S.done).length;
+  let setsN = 0; for (const k in S.logs) setsN += S.logs[k].filter(s => s.ok).length;
+  v.append(h('div', {class:'sec-h'}, h('h2', {style:'font-size:28px'}, 'Fortschritt')));
+  v.append(h('div', {class:'stats'},
+    h('div', {class:'card stat'}, h('b', {class:'num'}, `${doneN}`), h('span', {}, 'von 36 Trainings')),
+    h('div', {class:'card stat'}, h('b', {class:'num'}, `${Math.min(12, n.w)}`), h('span', {}, 'aktuelle Woche')),
+    h('div', {class:'card stat'}, h('b', {class:'num'}, `${setsN}`), h('span', {}, 'Sätze abgehakt'))));
+  const cal = h('div', {class:'cal'}, h('span'), ...DAYS.map(d => h('span', {class:'small muted', style:'text-align:center'}, d)));
+  for (let w = 1; w <= 12; w++){
+    cal.append(h('span', {class:'wl small'}, `W${w}`));
+    for (let d = 0; d < 3; d++) cal.append(h('button', {type:'button', class:'c' + (S.done[wk(w,d)] ? ' on' : '') + (n.w === w && n.d === d ? ' now' : ''), 'aria-label':`Woche ${w} Training ${DAYS[d]}${S.done[wk(w,d)] ? ', erledigt' : ''}`, onclick:() => { S.cur = {w, d}; save(); location.hash = 'training'; }}));
+  }
+  v.append(h('div', {class:'card pad', style:'display:flex;flex-direction:column;gap:10px'}, h('h3', {style:'font-size:20px'}, 'Trainingskalender'), cal));
+
+  const tests = [['pu','Liegestütze (max.)','Wdh.'],['pl', S.bar ? 'Klimmzüge (max.)' : 'Australian Rows (max.)','Wdh.'],['pk','Unterarmstütz','s'],['sw','Swings in 5 Min.','Wdh.']];
+  const tbl = h('table', {class:'tests'}, h('thead', {}, h('tr', {}, h('th', {}, 'Test'), h('th', {}, 'Woche 1'), h('th', {}, 'Woche 12'))));
+  const tb = h('tbody');
+  tests.forEach(([k, n2, u]) => {
+    const cell = when => { const i = h('input', {type:'number', inputmode:'numeric', id:`t-${k}-${when}`, value:(S.tests[k] || {})[when] || '', placeholder:u, 'aria-label':`${n2} ${when === 's' ? 'Woche 1' : 'Woche 12'}`});
+      i.addEventListener('change', () => { S.tests[k] = S.tests[k] || {}; S.tests[k][when] = i.value; save(); }); return h('td', {}, i); };
+    tb.append(h('tr', {}, h('td', {}, n2), cell('s'), cell('e')));
+  });
+  tbl.append(tb);
+  v.append(h('div', {class:'card pad', style:'display:flex;flex-direction:column;gap:8px'}, h('h3', {style:'font-size:20px'}, 'Testwerte'), h('span', {class:'small muted'}, 'Getestet wird im ersten Training (Woche 1 A) und im letzten (Woche 12 C).'), tbl));
+
+  const sw = h('button', {class:'switch', type:'button', role:'switch', 'aria-checked':String(S.bar), 'aria-label':'Klimmzugstange vorhanden'});
+  sw.addEventListener('click', () => { S.bar = !S.bar; save(); renderAll(); });
+  const kg = h('input', {type:'text', id:'kgs', value:S.kgs, placeholder:'z. B. 12, 16, 24', style:'width:100%;height:40px;border-radius:9px;border:1px solid var(--line);background:var(--surface2);padding:0 10px'});
+  kg.addEventListener('change', () => { S.kgs = kg.value; save(); });
+  v.append(h('div', {class:'card'},
+    h('div', {class:'toggle'}, h('div', {class:'t'}, h('b', {}, 'Klimmzugstange vorhanden'), h('div', {class:'small muted'}, 'Ohne Stange werden Klimmzüge durch Rudern ersetzt.')), sw),
+    h('div', {class:'toggle', style:'border-top:1px solid var(--line);flex-direction:column;align-items:stretch;gap:6px'}, h('label', {for:'kgs'}, h('b', {}, 'Meine Kettlebells (kg)')), kg)));
+
+  v.append(h('div', {class:'card pad prose'},
+    h('h3', {style:'font-size:20px'}, 'So funktioniert der Plan'),
+    h('ul', {},
+      h('li', {}, h('b', {}, 'Doppelte Progression: '), 'Schaffst du in allen Sätzen das obere Ende der Wiederholungen sauber, nimmst du beim nächsten Mal die schwerere Glocke oder die schwierigere Variante.'),
+      h('li', {}, h('b', {}, 'RPE: '), 'Anstrengung von 1–10. Bei 7 hättest du noch etwa 3 saubere Wiederholungen geschafft. Bis zum Muskelversagen wird nie trainiert.'),
+      h('li', {}, h('b', {}, 'Gewichte (Richtwerte): '), 'Swing und Kreuzheben 16–24 kg, Goblet Squat 12–20 kg, Rudern 12–20 kg, Schulterdrücken und Get-up 8–16 kg. Nach der Pause lieber leichter starten. Zwei Glocken (eine leichte, eine mittlere) reichen für den ganzen Plan.'),
+      h('li', {}, h('b', {}, 'Schmerz ist kein Signal zum Weitermachen: '), 'Ziehen im Muskel ist normal, stechender Gelenkschmerz nicht. Dann die leichtere Variante nehmen oder pausieren. Bei Vorerkrankungen vorher ärztlich abklären.')),
+    h('h3', {style:'font-size:20px'}, 'Inspiration'),
+    h('p', {}, 'Der Plan kombiniert bewährte Ansätze: das Swing- und Get-up-Fundament aus „Simple & Sinister“ (StrongFirst), den Goblet Squat nach Dan John, die Übungspaare und Progressionen der „Recommended Routine“ aus der Bodyweight-Fitness-Community sowie klassische Phasen-Periodisierung mit Deload-Wochen. Zu jeder Übung findest du über den Video-Link Technik-Erklärungen bekannter Trainer.')));
+
+  const reset = confirmReset
+    ? h('div', {style:'display:flex;gap:8px'}, h('button', {class:'btn danger', type:'button', style:'flex:1', onclick:() => { S = {done:{}, logs:{}, bar:S.bar, kgs:S.kgs, tests:{}, cur:{w:1,d:0}}; confirmReset = false; save(); renderAll(); }}, 'Ja, alles löschen'),
+        h('button', {class:'btn ghost', type:'button', style:'flex:1', onclick:() => { confirmReset = false; renderProgress(); }}, 'Abbrechen'))
+    : h('button', {class:'btn ghost block', type:'button', onclick:() => { confirmReset = true; renderProgress(); }}, 'Fortschritt zurücksetzen');
+  v.append(reset);
+  v.append(h('p', {class:'small muted', style:'margin:0;text-align:center'}, 'Deine Einträge werden nur auf diesem Gerät gespeichert.'));
+}
+
+/* ---------- Routing ---------- */
+const VIEWS = ['training','plan','uebungen','fortschritt'];
+function route(){
+  let v = location.hash.slice(1);
+  if (!VIEWS.includes(v)) v = 'training';
+  for (const x of VIEWS) $('#v-' + x).hidden = x !== v;
+  document.querySelectorAll('.tabs a').forEach(a => { if (a.dataset.v === v) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+  if (!$('#sheet').hidden) closeEx();
+  ({training:renderTraining, plan:renderPlan, uebungen:renderLib, fortschritt:renderProgress})[v]();
+  scrollTo(0, 0);
+}
+function renderAll(){ topChip(); route(); }
+addEventListener('hashchange', route);
+renderAll();
+
+/*PWA*/
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  try { navigator.serviceWorker.register('sw.js').catch(() => {}); } catch(e){}
+}
+/*/PWA*/
+</script>
+</body>
+</html>

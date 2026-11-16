@@ -744,6 +744,9 @@ def write_site(out: Path, data: dict) -> None:
         if not target.exists():
             target.write_bytes(make_icon(size))
     (out / ".nojekyll").write_text("", encoding="utf-8")
+    # Fitness-App (eigenständige PWA) unter /fitness/ mitveröffentlichen
+    if (ROOT / "fitness").is_dir():
+        shutil.copytree(ROOT / "fitness", out / "fitness", dirs_exist_ok=True)
 
 
 def check_feeds(cfg: dict) -> int:
