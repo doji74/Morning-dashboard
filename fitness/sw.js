@@ -1,6 +1,6 @@
 /* Service Worker für Heimkraft: App-Dateien zuerst aus dem Cache (offline nutzbar),
  * im Hintergrund aktualisieren. Schriften von Google werden mitgecacht. */
-const CACHE = "heimkraft-v1";
+const CACHE = "heimkraft-v2";
 const SHELL = ["./", "index.html", "manifest.json", "icons/icon-192.png", "icons/icon-512.png"];
 
 self.addEventListener("install", (e) => {
